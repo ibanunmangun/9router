@@ -299,7 +299,10 @@ function flattenTypeArrays(obj) {
 function ensureObjectType(obj) {
   if (!obj || typeof obj !== "object") return;
   if (obj.properties && !obj.type) obj.type = "object";
-  for (const v of Object.values(obj)) if (v && typeof v === "object") ensureObjectType(v);
+  if (obj.properties && typeof obj.properties === "object") {
+    for (const v of Object.values(obj.properties)) if (v && typeof v === "object") ensureObjectType(v);
+  }
+  if (obj.items && typeof obj.items === "object") ensureObjectType(obj.items);
 }
 
 // Clean JSON Schema for Antigravity API compatibility - removes unsupported keywords recursively
