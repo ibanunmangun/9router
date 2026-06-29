@@ -783,10 +783,10 @@ export function getRequestCountsByApiKey() {
   try {
     const db = getAdapter();
     const rows = db.all(
-      `SELECT apiKey, COUNT(*) as cnt FROM usageHistory WHERE apiKey IS NOT NULL AND apiKey != '' GROUP BY apiKey`
+      `SELECT apiKey, COUNT(*) as requests, SUM(cost) as cost FROM usageHistory WHERE apiKey IS NOT NULL AND apiKey != '' GROUP BY apiKey`
     );
     const result = {};
-    for (const r of rows) result[r.apiKey] = r.cnt;
+    for (const r of rows) result[r.apiKey] = { requests: r.requests, cost: r.cost || 0 };
     return result;
   } catch (e) {
     console.error("[usageRepo] getRequestCountsByApiKey failed:", e.message);

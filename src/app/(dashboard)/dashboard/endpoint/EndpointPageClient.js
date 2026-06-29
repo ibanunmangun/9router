@@ -17,6 +17,15 @@ import EndpointRow from "./components/EndpointRow";
 import StatusAlert from "./components/StatusAlert";
 import Tooltip from "./components/Tooltip";
 import SecurityWarning from "./components/SecurityWarning";
+
+function formatCost(usd) {
+  const v = Number(usd || 0);
+  if (!Number.isFinite(v) || v === 0) return "$0.00";
+  if (v < 0.01) return `$${v.toFixed(6)}`;
+  if (v < 1) return `$${v.toFixed(4)}`;
+  return `$${v.toFixed(2)}`;
+}
+
 export default function APIPageClient({ machineId }) {
   const [keys, setKeys] = useState([]);
   const [keyCounts, setKeyCounts] = useState({});
@@ -1035,9 +1044,11 @@ export default function APIPageClient({ machineId }) {
                 <div className="flex items-center gap-3 shrink-0">
                   <div className="text-right">
                     <p className="text-sm font-semibold tabular-nums">
-                      {(keyCounts[key.key] ?? 0).toLocaleString()}
+                      {(keyCounts[key.key]?.requests ?? 0).toLocaleString()} requests
                     </p>
-                    <p className="text-[11px] text-text-muted">requests</p>
+                    <p className="text-[11px] text-text-muted tabular-nums">
+                      {formatCost(keyCounts[key.key]?.cost)} est. cost
+                    </p>
                   </div>
                   <button
                     onClick={() => handleDeleteKey(key.id)}
