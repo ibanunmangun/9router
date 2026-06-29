@@ -18,7 +18,7 @@ function SelectionChip({ value, onRemove }) {
       size="sm"
       className="gap-1 pr-0.5"
     >
-      <span>{value}</span>
+      <span className="max-w-full break-all">{value}</span>
       <button
         type="button"
         onClick={() => onRemove(value)}
@@ -73,11 +73,11 @@ function ModelSelectSection({ label, selected, onRemove, onAdd, onAddPattern, ac
   };
 
   return (
-    <div className="flex flex-col gap-1.5">
+      <div className="flex min-w-0 flex-col gap-1.5">
       {label && <label className="text-sm font-medium text-text-main">{label}</label>}
 
       {/* Selected chips */}
-      <div className="flex flex-wrap gap-1.5 min-h-[36px] w-full rounded-[10px] border border-border bg-surface-2 px-3 py-2">
+      <div className="flex min-w-0 flex-wrap gap-1.5 min-h-[36px] w-full rounded-[10px] border border-border bg-surface-2 px-3 py-2">
         {selected.map((v) => (
           <SelectionChip key={v} value={v} onRemove={onRemove} />
         ))}
@@ -87,7 +87,7 @@ function ModelSelectSection({ label, selected, onRemove, onAdd, onAddPattern, ac
       </div>
 
       {/* Add model / add pattern buttons */}
-      <div className="flex gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row">
         <Button
           variant="secondary"
           size="sm"
@@ -110,14 +110,14 @@ function ModelSelectSection({ label, selected, onRemove, onAdd, onAddPattern, ac
 
       {/* Inline custom pattern input */}
       {showPatternInput && (
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row">
           <input
             type="text"
             value={patternInput}
             onChange={e => setPatternInput(e.target.value)}
             onKeyDown={handlePatternKeyDown}
             placeholder="e.g. kr/*  or  claude-sonnet*  or  openai/gpt-5"
-            className="flex-1 rounded-[10px] border border-border bg-surface-2 px-3 py-1.5 text-sm text-text-main outline-none focus:ring-2 focus:ring-brand-500/30"
+            className="min-w-0 flex-1 rounded-[10px] border border-border bg-surface-2 px-3 py-1.5 text-sm text-text-main outline-none focus:ring-2 focus:ring-brand-500/30"
           />
           <Button size="sm" onClick={handleAddPattern} disabled={!patternInput.trim()}>
             Add
@@ -245,11 +245,11 @@ export default function ApiKeyDrawer({ isOpen, onClose, editKey, onSaved, active
                 This is the only time you will see it. Store it securely.
               </p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <Input
                 value={createdKey.key || ""}
                 readOnly
-                className="flex-1 font-mono text-sm"
+                className="min-w-0 flex-1 font-mono text-sm"
               />
               <Button
                 variant="secondary"
@@ -292,8 +292,8 @@ export default function ApiKeyDrawer({ isOpen, onClose, editKey, onSaved, active
 
             {/* Model restrictions */}
             <div className="flex flex-col gap-3">
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
                   <p className="text-sm font-medium text-text-main">Model Restrictions</p>
                   <p className="text-xs text-text-muted">
                     Restrict this key to specific models or providers
@@ -311,7 +311,7 @@ export default function ApiKeyDrawer({ isOpen, onClose, editKey, onSaved, active
               </div>
 
               {isRestricted && (
-                <div className="flex flex-col gap-3 pl-1 border-l-2 border-primary/20">
+                <div className="flex min-w-0 flex-col gap-3 pl-1 border-l-2 border-primary/20">
                   <ModelSelectSection
                     selected={allowedModels}
                     onRemove={(v) => setAllowedModels(allowedModels.filter(x => x !== v))}
@@ -334,7 +334,7 @@ export default function ApiKeyDrawer({ isOpen, onClose, editKey, onSaved, active
             )}
 
             {/* Actions */}
-            <div className="flex gap-2 pt-2 border-t border-border">
+            <div className="flex flex-col gap-2 pt-2 border-t border-border sm:flex-row">
               <Button
                 onClick={handleSave}
                 disabled={saving || !name.trim()}
