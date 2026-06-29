@@ -112,6 +112,15 @@ function normalizeSchemaTypes(schema) {
     result.items = normalizeSchemaTypes(result.items);
   }
 
+  if (result.additionalProperties && typeof result.additionalProperties === "object") {
+    result.additionalProperties = normalizeSchemaTypes(result.additionalProperties);
+  }
+
+  // Gemini rejects type:object without properties — add placeholder to satisfy API
+  if (result.type === "object" && (!result.properties || Object.keys(result.properties).length === 0)) {
+    result.properties = { _: { type: "string" } };
+  }
+
   return result;
 }
 
