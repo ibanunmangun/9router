@@ -99,7 +99,7 @@ function ApiKeyRow({ apiKey, onEdit, onDelete, onToggle, visibleKeys, onToggleVi
       </div>
 
       {/* Right: actions */}
-      <div className="flex items-center justify-between gap-1 sm:shrink-0 sm:justify-end">
+      <div className="flex items-center justify-end gap-1 shrink-0">
         <Toggle
           size="sm"
           checked={apiKey.isActive ?? true}
