@@ -17,8 +17,18 @@ import EndpointRow from "./components/EndpointRow";
 import StatusAlert from "./components/StatusAlert";
 import Tooltip from "./components/Tooltip";
 import SecurityWarning from "./components/SecurityWarning";
+
+function formatCost(usd) {
+  const v = Number(usd || 0);
+  if (!Number.isFinite(v) || v === 0) return "$0.00";
+  if (v < 0.01) return `$${v.toFixed(6)}`;
+  if (v < 1) return `$${v.toFixed(4)}`;
+  return `$${v.toFixed(2)}`;
+}
+
 export default function APIPageClient({ machineId }) {
   const [keys, setKeys] = useState([]);
+  const [keyCounts, setKeyCounts] = useState({});
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newKeyName, setNewKeyName] = useState("");
@@ -255,11 +265,14 @@ export default function APIPageClient({ machineId }) {
 
   const fetchData = async () => {
     try {
-      const keysRes = await fetch("/api/keys");
+      const [keysRes, countsRes] = await Promise.all([
+        fetch("/api/keys"),
+        fetch("/api/keys/counts"),
+      ]);
       const keysData = await keysRes.json();
-      if (keysRes.ok) {
-        setKeys(keysData.keys || []);
-      }
+      const countsData = countsRes.ok ? await countsRes.json() : {};
+      if (keysRes.ok) setKeys(keysData.keys || []);
+      setKeyCounts(countsData.counts || {});
     } catch (error) {
       console.log("Error fetching data:", error);
     } finally {
@@ -995,17 +1008,17 @@ export default function APIPageClient({ machineId }) {
             {keys.map((key) => (
               <div
                 key={key.id}
-                className={`group flex items-center justify-between py-3 border-b border-black/[0.03] dark:border-white/[0.03] last:border-b-0 ${key.isActive === false ? "opacity-60" : ""}`}
+                className={`group flex flex-col gap-3 py-3 border-b border-black/[0.03] dark:border-white/[0.03] last:border-b-0 sm:flex-row sm:items-center sm:justify-between ${key.isActive === false ? "opacity-60" : ""}`}
               >
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium">{key.name}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <code className="text-xs text-text-muted font-mono">
+                  <div className="flex min-w-0 items-center gap-2 mt-1">
+                    <code className="flex-1 min-w-0 truncate text-xs text-text-muted font-mono">
                       {visibleKeys.has(key.id) ? key.key : maskKey(key.key)}
                     </code>
                     <button
                       onClick={() => toggleKeyVisibility(key.id)}
-                      className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-primary opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
+                      className="shrink-0 p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-primary opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
                       title={visibleKeys.has(key.id) ? "Hide key" : "Show key"}
                     >
                       <span className="material-symbols-outlined text-[14px]">
@@ -1014,7 +1027,7 @@ export default function APIPageClient({ machineId }) {
                     </button>
                     <button
                       onClick={() => copy(key.key, key.id)}
-                      className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-primary opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
+                      className="shrink-0 p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-primary opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
                     >
                       <span className="material-symbols-outlined text-[14px]">
                         {copied === key.id ? "check" : "content_copy"}
@@ -1028,26 +1041,15 @@ export default function APIPageClient({ machineId }) {
                     <p className="text-xs text-orange-500 mt-1">Paused</p>
                   )}
                 </div>
-                <div className="flex items-center gap-2">
-                  <Toggle
-                    size="sm"
-                    checked={key.isActive ?? true}
-                    onChange={(checked) => {
-                      if (key.isActive && !checked) {
-                        setConfirmState({
-                          title: "Pause API Key",
-                          message: `Pause API key "${key.name}"?\n\nThis key will stop working immediately but can be resumed later.`,
-                          onConfirm: async () => {
-                            setConfirmState(null);
-                            handleToggleKey(key.id, checked);
-                          }
-                        });
-                      } else {
-                        handleToggleKey(key.id, checked);
-                      }
-                    }}
-                    title={key.isActive ? "Pause key" : "Resume key"}
-                  />
+                <div className="flex items-center justify-between gap-3 sm:shrink-0 sm:justify-end">
+                  <div className="text-left sm:text-right">
+                    <p className="text-sm font-semibold tabular-nums">
+                      {(keyCounts[key.key]?.requests ?? 0).toLocaleString()} requests
+                    </p>
+                    <p className="text-[11px] text-text-muted tabular-nums">
+                      {formatCost(keyCounts[key.key]?.cost)} est. cost
+                    </p>
+                  </div>
                   <button
                     onClick={() => handleDeleteKey(key.id)}
                     className="p-2 hover:bg-red-500/10 rounded text-red-500 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"

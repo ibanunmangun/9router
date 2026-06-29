@@ -8,7 +8,9 @@ import ApiKeyDrawer from "./ApiKeyDrawer";
 
 function maskKey(key) {
   if (!key) return "—";
-  return key.slice(0, 8) + "...";
+  const prefix = key.slice(0, 6);
+  const suffix = key.slice(-4);
+  return `${prefix}••••••${suffix}`;
 }
 
 function formatDate(dateStr) {
@@ -44,30 +46,23 @@ function ApiKeyRow({ apiKey, onEdit, onDelete, onToggle, visibleKeys, onToggleVi
   const isExpired = apiKey.expiresAt && new Date(apiKey.expiresAt) < new Date();
 
   return (
-    <div className={`group flex items-center px-4 py-3 border-b border-black/[0.03] dark:border-white/[0.03] last:border-b-0 gap-4 ${apiKey.isActive === false ? "opacity-60" : ""} ${isExpired ? "opacity-80" : ""}`}>
+    <div className={`group flex flex-col gap-3 px-4 py-3 border-b border-black/[0.03] dark:border-white/[0.03] last:border-b-0 sm:flex-row sm:items-center sm:justify-between sm:gap-6 ${apiKey.isActive === false ? "opacity-60" : ""} ${isExpired ? "opacity-80" : ""}`}>
       {/* Left: info */}
-      <div className="min-w-0 flex items-start flex-col gap-1 flex-1 max-w-md">
-        <div className="flex items-center gap-2 flex-wrap min-w-0">
-          <span className="text-sm font-medium truncate">{apiKey.name || "Unnamed"}</span>
-          {hasRestrictions && (
-            <Badge variant="warning" size="sm">Restricted</Badge>
-          )}
-          {isExpired && (
-            <Badge variant="error" size="sm">Expired</Badge>
-          )}
-          {apiKey.isActive === false && (
-            <Badge variant="default" size="sm">Paused</Badge>
-          )}
+      <div className="flex-1 min-w-0">
+        {/* Name */}
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-medium">{apiKey.name || "Unnamed"}</p>
+          {hasRestrictions && <Badge variant="warning" size="sm">Restricted</Badge>}
         </div>
 
         {/* Key value row */}
-        <div className="flex items-center gap-1.5">
-          <code className="text-xs text-text-muted font-mono bg-surface-2 px-2 py-0.5 rounded">
+        <div className="flex min-w-0 items-center gap-2 mt-1">
+          <code className="flex-1 min-w-0 truncate text-xs text-text-muted font-mono">
             {visibleKeys.has(apiKey.id) ? apiKey.key : maskKey(apiKey.key)}
           </code>
           <button
             onClick={() => onToggleVisibility(apiKey.id)}
-            className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-primary"
+            className="shrink-0 p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-primary opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
             title={visibleKeys.has(apiKey.id) ? "Hide key" : "Show key"}
           >
             <span className="material-symbols-outlined text-[14px]">
@@ -76,50 +71,51 @@ function ApiKeyRow({ apiKey, onEdit, onDelete, onToggle, visibleKeys, onToggleVi
           </button>
           <button
             onClick={() => onCopy(apiKey.key, apiKey.id)}
-            className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-primary"
+            className="shrink-0 p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-primary opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
             title="Copy key"
           >
             <span className="material-symbols-outlined text-[14px]">
               {copied === apiKey.id ? "check" : "content_copy"}
             </span>
           </button>
+          <button
+            onClick={() => onEdit(apiKey)}
+            className="shrink-0 p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-primary opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
+            title="Edit key"
+          >
+            <span className="material-symbols-outlined text-[14px]">edit</span>
+          </button>
         </div>
 
-        {/* Model restrictions */}
-        {hasRestrictions && (
-          <div className="flex items-center gap-1 flex-wrap">
-            {apiKey.allowedModels.map((p) => (
-              <ModelBadge key={p} pattern={p} />
-            ))}
+        <p className="text-xs text-text-muted mt-1">
+          Created {formatDate(apiKey.createdAt)}
+        </p>
+
+        {(apiKey.isActive === false || isExpired || apiKey.lastUsedAt || apiKey.expiresAt) && (
+          <div className="flex items-center gap-2 flex-wrap mt-1">
+            {apiKey.isActive === false && <Badge variant="default" size="sm">Paused</Badge>}
+            {isExpired && <Badge variant="error" size="sm">Expired</Badge>}
+            <span className="text-xs text-text-muted">
+              {[
+                apiKey.lastUsedAt && `Last used ${formatDate(apiKey.lastUsedAt)}`,
+                apiKey.expiresAt && !isExpired && `Expires ${new Date(apiKey.expiresAt).toLocaleDateString()}`,
+              ].filter(Boolean).join(" · ")}
+            </span>
           </div>
         )}
-
-        {/* Meta row */}
-        <div className="flex items-center gap-3 text-xs text-text-muted flex-wrap">
-          {apiKey.lastUsedAt && (
-            <span>Last used {formatDate(apiKey.lastUsedAt)}</span>
-          )}
-          {apiKey.expiresAt && !isExpired && (
-            <span>Expires {new Date(apiKey.expiresAt).toLocaleDateString()}</span>
-          )}
-          <span>Created {formatDate(apiKey.createdAt)}</span>
-        </div>
       </div>
 
       {/* Right: actions */}
-      <div className="flex items-center gap-2 shrink-0 self-center ml-auto">
+      <div className="flex items-center justify-end gap-1 shrink-0">
         <Toggle
           size="sm"
           checked={apiKey.isActive ?? true}
           onChange={(checked) => onToggle(apiKey.id, checked)}
           title={apiKey.isActive ? "Pause key" : "Resume key"}
         />
-        <Button size="sm" variant="ghost" icon="edit" onClick={() => onEdit(apiKey)}>
-          Edit
-        </Button>
         <button
           onClick={() => onDelete(apiKey.id, apiKey.name)}
-          className="p-1.5 hover:bg-red-500/10 rounded text-red-500"
+          className="p-1.5 hover:bg-red-500/10 rounded text-red-500 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
           title="Delete key"
         >
           <span className="material-symbols-outlined text-[16px]">delete</span>
