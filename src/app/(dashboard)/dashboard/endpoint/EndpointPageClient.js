@@ -1013,7 +1013,7 @@ export default function APIPageClient({ machineId }) {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium">{key.name}</p>
                   <div className="flex min-w-0 items-center gap-2 mt-1">
-                    <code className="min-w-0 truncate text-xs text-text-muted font-mono">
+                    <code className="flex-1 min-w-0 truncate text-xs text-text-muted font-mono">
                       {visibleKeys.has(key.id) ? key.key : maskKey(key.key)}
                     </code>
                     <button

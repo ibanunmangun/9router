@@ -57,7 +57,7 @@ function ApiKeyRow({ apiKey, onEdit, onDelete, onToggle, visibleKeys, onToggleVi
 
         {/* Key value row */}
         <div className="flex min-w-0 items-center gap-2 mt-1">
-          <code className="min-w-0 truncate text-xs text-text-muted font-mono">
+          <code className="flex-1 min-w-0 truncate text-xs text-text-muted font-mono">
             {visibleKeys.has(apiKey.id) ? apiKey.key : maskKey(apiKey.key)}
           </code>
           <button
