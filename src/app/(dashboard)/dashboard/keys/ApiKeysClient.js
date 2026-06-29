@@ -46,7 +46,7 @@ function ApiKeyRow({ apiKey, onEdit, onDelete, onToggle, visibleKeys, onToggleVi
   const isExpired = apiKey.expiresAt && new Date(apiKey.expiresAt) < new Date();
 
   return (
-    <div className={`group flex items-center justify-between px-4 py-3 border-b border-black/[0.03] dark:border-white/[0.03] last:border-b-0 gap-6 ${apiKey.isActive === false ? "opacity-60" : ""} ${isExpired ? "opacity-80" : ""}`}>
+    <div className={`group flex flex-col gap-3 px-4 py-3 border-b border-black/[0.03] dark:border-white/[0.03] last:border-b-0 sm:flex-row sm:items-center sm:justify-between sm:gap-6 ${apiKey.isActive === false ? "opacity-60" : ""} ${isExpired ? "opacity-80" : ""}`}>
       {/* Left: info */}
       <div className="flex-1 min-w-0">
         {/* Name */}
@@ -56,8 +56,8 @@ function ApiKeyRow({ apiKey, onEdit, onDelete, onToggle, visibleKeys, onToggleVi
         </div>
 
         {/* Key value row */}
-        <div className="flex items-center gap-2 mt-1">
-          <code className="text-xs text-text-muted font-mono">
+        <div className="flex min-w-0 items-center gap-2 mt-1">
+          <code className="min-w-0 truncate text-xs text-text-muted font-mono">
             {visibleKeys.has(apiKey.id) ? apiKey.key : maskKey(apiKey.key)}
           </code>
           <button
@@ -99,7 +99,7 @@ function ApiKeyRow({ apiKey, onEdit, onDelete, onToggle, visibleKeys, onToggleVi
       </div>
 
       {/* Right: actions */}
-      <div className="flex items-center gap-1 shrink-0">
+      <div className="flex items-center justify-between gap-1 sm:shrink-0 sm:justify-end">
         <Toggle
           size="sm"
           checked={apiKey.isActive ?? true}
