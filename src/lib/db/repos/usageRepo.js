@@ -1,5 +1,5 @@
 import { EventEmitter } from "events";
-import { getAdapter } from "../driver.js";
+import { getAdapter, getAdapterSync } from "../driver.js";
 import { parseJson, stringifyJson } from "../helpers/jsonCol.js";
 import { getMeta, setMeta } from "../helpers/metaStore.js";
 
@@ -781,7 +781,7 @@ export async function getRecentLogs(limit = 200) {
 
 export function getRequestCountsByApiKey() {
   try {
-    const db = getAdapter();
+    const db = getAdapterSync();
     const rows = db.all(
       `SELECT apiKey, COUNT(*) as requests, SUM(cost) as cost FROM usageHistory WHERE apiKey IS NOT NULL AND apiKey != '' GROUP BY apiKey`
     );
