@@ -62,7 +62,7 @@ function ApiKeyRow({ apiKey, onEdit, onDelete, onToggle, visibleKeys, onToggleVi
           </code>
           <button
             onClick={() => onToggleVisibility(apiKey.id)}
-            className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-primary opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
+            className="shrink-0 p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-primary opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
             title={visibleKeys.has(apiKey.id) ? "Hide key" : "Show key"}
           >
             <span className="material-symbols-outlined text-[14px]">
@@ -71,7 +71,7 @@ function ApiKeyRow({ apiKey, onEdit, onDelete, onToggle, visibleKeys, onToggleVi
           </button>
           <button
             onClick={() => onCopy(apiKey.key, apiKey.id)}
-            className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-primary opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
+            className="shrink-0 p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-primary opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
             title="Copy key"
           >
             <span className="material-symbols-outlined text-[14px]">
