@@ -78,6 +78,13 @@ function ApiKeyRow({ apiKey, onEdit, onDelete, onToggle, visibleKeys, onToggleVi
               {copied === apiKey.id ? "check" : "content_copy"}
             </span>
           </button>
+          <button
+            onClick={() => onEdit(apiKey)}
+            className="shrink-0 p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-primary opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
+            title="Edit key"
+          >
+            <span className="material-symbols-outlined text-[14px]">edit</span>
+          </button>
         </div>
 
         <p className="text-xs text-text-muted mt-1">
@@ -106,13 +113,6 @@ function ApiKeyRow({ apiKey, onEdit, onDelete, onToggle, visibleKeys, onToggleVi
           onChange={(checked) => onToggle(apiKey.id, checked)}
           title={apiKey.isActive ? "Pause key" : "Resume key"}
         />
-        <button
-          onClick={() => onEdit(apiKey)}
-          className="p-1.5 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-primary opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
-          title="Edit key"
-        >
-          <span className="material-symbols-outlined text-[16px]">edit</span>
-        </button>
         <button
           onClick={() => onDelete(apiKey.id, apiKey.name)}
           className="p-1.5 hover:bg-red-500/10 rounded text-red-500 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
