@@ -19,6 +19,7 @@ import Tooltip from "./components/Tooltip";
 import SecurityWarning from "./components/SecurityWarning";
 export default function APIPageClient({ machineId }) {
   const [keys, setKeys] = useState([]);
+  const [keyCounts, setKeyCounts] = useState({});
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newKeyName, setNewKeyName] = useState("");
@@ -255,11 +256,14 @@ export default function APIPageClient({ machineId }) {
 
   const fetchData = async () => {
     try {
-      const keysRes = await fetch("/api/keys");
+      const [keysRes, countsRes] = await Promise.all([
+        fetch("/api/keys"),
+        fetch("/api/keys/counts"),
+      ]);
       const keysData = await keysRes.json();
-      if (keysRes.ok) {
-        setKeys(keysData.keys || []);
-      }
+      const countsData = countsRes.ok ? await countsRes.json() : {};
+      if (keysRes.ok) setKeys(keysData.keys || []);
+      setKeyCounts(countsData.counts || {});
     } catch (error) {
       console.log("Error fetching data:", error);
     } finally {
@@ -1028,26 +1032,13 @@ export default function APIPageClient({ machineId }) {
                     <p className="text-xs text-orange-500 mt-1">Paused</p>
                   )}
                 </div>
-                <div className="flex items-center gap-2">
-                  <Toggle
-                    size="sm"
-                    checked={key.isActive ?? true}
-                    onChange={(checked) => {
-                      if (key.isActive && !checked) {
-                        setConfirmState({
-                          title: "Pause API Key",
-                          message: `Pause API key "${key.name}"?\n\nThis key will stop working immediately but can be resumed later.`,
-                          onConfirm: async () => {
-                            setConfirmState(null);
-                            handleToggleKey(key.id, checked);
-                          }
-                        });
-                      } else {
-                        handleToggleKey(key.id, checked);
-                      }
-                    }}
-                    title={key.isActive ? "Pause key" : "Resume key"}
-                  />
+                <div className="flex items-center gap-3 shrink-0">
+                  <div className="text-right">
+                    <p className="text-sm font-semibold tabular-nums">
+                      {(keyCounts[key.key] ?? 0).toLocaleString()}
+                    </p>
+                    <p className="text-[11px] text-text-muted">requests</p>
+                  </div>
                   <button
                     onClick={() => handleDeleteKey(key.id)}
                     className="p-2 hover:bg-red-500/10 rounded text-red-500 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
