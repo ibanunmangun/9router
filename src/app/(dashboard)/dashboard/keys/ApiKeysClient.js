@@ -48,18 +48,18 @@ function ApiKeyRow({ apiKey, onEdit, onDelete, onToggle, visibleKeys, onToggleVi
   return (
     <div className={`group flex items-center justify-between px-4 py-3 border-b border-black/[0.03] dark:border-white/[0.03] last:border-b-0 gap-6 ${apiKey.isActive === false ? "opacity-60" : ""} ${isExpired ? "opacity-80" : ""}`}>
       {/* Left: info */}
-      <div className="flex-1 min-w-0 flex flex-col gap-1">
+      <div className="flex-1 min-w-0">
         {/* Name */}
-        <p className="text-sm font-medium truncate">{apiKey.name || "Unnamed"}</p>
+        <p className="text-sm font-medium">{apiKey.name || "Unnamed"}</p>
 
         {/* Key value row */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2 mt-1">
           <code className="text-xs text-text-muted font-mono">
             {visibleKeys.has(apiKey.id) ? apiKey.key : maskKey(apiKey.key)}
           </code>
           <button
             onClick={() => onToggleVisibility(apiKey.id)}
-            className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-primary opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+            className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-primary opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
             title={visibleKeys.has(apiKey.id) ? "Hide key" : "Show key"}
           >
             <span className="material-symbols-outlined text-[14px]">
@@ -68,7 +68,7 @@ function ApiKeyRow({ apiKey, onEdit, onDelete, onToggle, visibleKeys, onToggleVi
           </button>
           <button
             onClick={() => onCopy(apiKey.key, apiKey.id)}
-            className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-primary opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+            className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-primary opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
             title="Copy key"
           >
             <span className="material-symbols-outlined text-[14px]">
@@ -79,26 +79,30 @@ function ApiKeyRow({ apiKey, onEdit, onDelete, onToggle, visibleKeys, onToggleVi
 
         {/* Model restrictions */}
         {hasRestrictions && (
-          <div className="flex items-center gap-1 flex-wrap">
+          <div className="flex items-center gap-1 flex-wrap mt-1">
             {apiKey.allowedModels.map((p) => (
               <ModelBadge key={p} pattern={p} />
             ))}
           </div>
         )}
 
-        {/* Meta row: dates + status badges */}
-        <div className="flex items-center gap-2 flex-wrap">
-          {apiKey.isActive === false && <Badge variant="default" size="sm">Paused</Badge>}
-          {isExpired && <Badge variant="error" size="sm">Expired</Badge>}
-          {hasRestrictions && <Badge variant="warning" size="sm">Restricted</Badge>}
-          <span className="text-xs text-text-muted">
-            {[
-              apiKey.lastUsedAt && `Last used ${formatDate(apiKey.lastUsedAt)}`,
-              apiKey.expiresAt && !isExpired && `Expires ${new Date(apiKey.expiresAt).toLocaleDateString()}`,
-              `Created ${formatDate(apiKey.createdAt)}`,
-            ].filter(Boolean).join(" · ")}
-          </span>
-        </div>
+        <p className="text-xs text-text-muted mt-1">
+          Created {formatDate(apiKey.createdAt)}
+        </p>
+
+        {(apiKey.isActive === false || isExpired || hasRestrictions || apiKey.lastUsedAt || apiKey.expiresAt) && (
+          <div className="flex items-center gap-2 flex-wrap mt-1">
+            {apiKey.isActive === false && <Badge variant="default" size="sm">Paused</Badge>}
+            {isExpired && <Badge variant="error" size="sm">Expired</Badge>}
+            {hasRestrictions && <Badge variant="warning" size="sm">Restricted</Badge>}
+            <span className="text-xs text-text-muted">
+              {[
+                apiKey.lastUsedAt && `Last used ${formatDate(apiKey.lastUsedAt)}`,
+                apiKey.expiresAt && !isExpired && `Expires ${new Date(apiKey.expiresAt).toLocaleDateString()}`,
+              ].filter(Boolean).join(" · ")}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Right: actions */}
