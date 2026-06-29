@@ -3,6 +3,7 @@ import { describe, it, expect } from "vitest";
 import "./registerAll.js";
 import { translateRequest } from "../../open-sse/translator/index.js";
 import { FORMATS } from "../../open-sse/translator/formats.js";
+import { cleanJSONSchemaForAntigravity } from "../../open-sse/translator/formats/gemini.js";
 
 const O2G = (body) => translateRequest(FORMATS.OPENAI, FORMATS.GEMINI, "m", body, true, null, "gemini");
 const O2C = (body) => translateRequest(FORMATS.OPENAI, FORMATS.CURSOR, "m", body, true, null, "cursor");
@@ -20,6 +21,66 @@ describe("OpenAI → Gemini", () => {
       ],
     });
     expect(JSON.stringify(out.systemInstruction), "earlier system lost").toContain("RULE_ONE");
+  });
+});
+
+describe("Antigravity JSON Schema cleanup", () => {
+  it("normalizes MCP-style lowercase schema types to Vertex enum names recursively", () => {
+    const cleaned = cleanJSONSchemaForAntigravity({
+      type: "object",
+      properties: {
+        query: { type: "string" },
+        limit: { type: "integer" },
+        threshold: { type: "number" },
+        enabled: { type: "boolean" },
+        filters: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              field: { type: "string" },
+              values: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    label: { type: "string" },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    expect(cleaned).toMatchObject({
+      type: "OBJECT",
+      properties: {
+        query: { type: "STRING" },
+        limit: { type: "INTEGER" },
+        threshold: { type: "NUMBER" },
+        enabled: { type: "BOOLEAN" },
+        filters: {
+          type: "ARRAY",
+          items: {
+            type: "OBJECT",
+            properties: {
+              field: { type: "STRING" },
+              values: {
+                type: "ARRAY",
+                items: {
+                  type: "OBJECT",
+                  properties: {
+                    label: { type: "STRING" },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
   });
 });
 
