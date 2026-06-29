@@ -50,7 +50,10 @@ function ApiKeyRow({ apiKey, onEdit, onDelete, onToggle, visibleKeys, onToggleVi
       {/* Left: info */}
       <div className="flex-1 min-w-0">
         {/* Name */}
-        <p className="text-sm font-medium">{apiKey.name || "Unnamed"}</p>
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-medium">{apiKey.name || "Unnamed"}</p>
+          {hasRestrictions && <Badge variant="warning" size="sm">Restricted</Badge>}
+        </div>
 
         {/* Key value row */}
         <div className="flex items-center gap-2 mt-1">
@@ -77,24 +80,14 @@ function ApiKeyRow({ apiKey, onEdit, onDelete, onToggle, visibleKeys, onToggleVi
           </button>
         </div>
 
-        {/* Model restrictions */}
-        {hasRestrictions && (
-          <div className="flex items-center gap-1 flex-wrap mt-1">
-            {apiKey.allowedModels.map((p) => (
-              <ModelBadge key={p} pattern={p} />
-            ))}
-          </div>
-        )}
-
         <p className="text-xs text-text-muted mt-1">
           Created {formatDate(apiKey.createdAt)}
         </p>
 
-        {(apiKey.isActive === false || isExpired || hasRestrictions || apiKey.lastUsedAt || apiKey.expiresAt) && (
+        {(apiKey.isActive === false || isExpired || apiKey.lastUsedAt || apiKey.expiresAt) && (
           <div className="flex items-center gap-2 flex-wrap mt-1">
             {apiKey.isActive === false && <Badge variant="default" size="sm">Paused</Badge>}
             {isExpired && <Badge variant="error" size="sm">Expired</Badge>}
-            {hasRestrictions && <Badge variant="warning" size="sm">Restricted</Badge>}
             <span className="text-xs text-text-muted">
               {[
                 apiKey.lastUsedAt && `Last used ${formatDate(apiKey.lastUsedAt)}`,
