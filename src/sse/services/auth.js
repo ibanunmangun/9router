@@ -1,4 +1,5 @@
-import { getProviderConnections, validateApiKey, updateProviderConnection, getSettings } from "@/lib/localDb";
+import { getProviderConnections, validateApiKey, updateProviderConnection, getSettings, getApiKeyMetadata } from "@/lib/localDb";
+import { modelPatternMatches } from "@/shared/utils/modelPermissions.js";
 import { resolveConnectionProxyConfig } from "@/lib/network/connectionProxy";
 import { formatRetryAfter, checkFallbackError, isModelLockActive, buildModelLockUpdate, getEarliestModelLockUntil } from "open-sse/services/accountFallback.js";
 import { MAX_RATE_LIMIT_COOLDOWN_MS } from "open-sse/config/errorConfig.js";
@@ -309,4 +310,25 @@ export function extractApiKey(request) {
 export async function isValidApiKey(apiKey) {
   if (!apiKey) return false;
   return await validateApiKey(apiKey);
+}
+
+/**
+ * Check whether a model is allowed for a given API key.
+ *
+ * Logic:
+ *   1. No key metadata → allow
+ *   2. allowedModels empty ([]) → allow (backward compat)
+ *   3. Pattern match every entry in allowedModels
+ *
+ * @param {string} apiKey - The API key string
+ * @param {string} modelId - The model ID to check
+ * @returns {Promise<boolean>}
+ */
+export async function isModelAllowedForKey(apiKey, modelId) {
+  if (!apiKey || !modelId) return true;
+
+  const metadata = await getApiKeyMetadata(apiKey);
+  if (!metadata) return true;
+  if (!metadata.allowedModels || metadata.allowedModels.length === 0) return true;
+  return metadata.allowedModels.some((p) => modelPatternMatches(p, [modelId]));
 }

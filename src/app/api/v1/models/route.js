@@ -5,8 +5,10 @@ import {
   isAnthropicCompatibleProvider,
   isOpenAICompatibleProvider,
 } from "@/shared/constants/providers";
-import { getProviderConnections, getCombos, getCustomModels, getModelAliases } from "@/lib/localDb";
+import { getProviderConnections, getCombos, getCustomModels, getModelAliases, getApiKeyMetadata } from "@/lib/localDb";
 import { getDisabledModels } from "@/lib/disabledModelsDb";
+import { extractApiKey } from "@/sse/services/auth";
+import { modelPatternMatches } from "@/shared/utils/modelPermissions.js";
 import { resolveKiroModels } from "open-sse/services/kiroModels.js";
 import { resolveQoderModels } from "open-sse/services/qoderModels.js";
 import { resolveCopilotModels } from "open-sse/services/copilotModels.js";
@@ -445,9 +447,18 @@ export async function OPTIONS() {
  * GET /v1/models - OpenAI compatible models list (LLM/chat models only by default).
  * For other capabilities use /v1/models/{kind} (image, tts, stt, embedding, image-to-text, web).
  */
-export async function GET() {
+export async function GET(request) {
   try {
-    const data = await buildModelsList([LLM_KIND]);
+    let data = await buildModelsList([LLM_KIND]);
+
+    const apiKey = extractApiKey(request);
+    if (apiKey) {
+      const metadata = await getApiKeyMetadata(apiKey);
+      if (metadata?.allowedModels?.length > 0) {
+        data = data.filter((m) => metadata.allowedModels.some((p) => modelPatternMatches(p, [m.id])));
+      }
+    }
+
     return Response.json({ object: "list", data }, {
       headers: { "Access-Control-Allow-Origin": "*" },
     });
