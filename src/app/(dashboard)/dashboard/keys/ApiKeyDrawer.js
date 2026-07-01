@@ -40,6 +40,7 @@ function DailyLimitSection({ enabled, onToggle, mode, onModeChange, value, onVal
             value={mode}
             onChange={onModeChange}
             size="sm"
+            fullWidth
           />
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-2">
@@ -55,13 +56,13 @@ function DailyLimitSection({ enabled, onToggle, mode, onModeChange, value, onVal
               />
               <span className="text-sm font-medium text-text-main w-12">{mode === "spend" ? "USD" : "req"}</span>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-4 gap-2">
               {mode === "spend" 
                 ? [5, 10, 50, 100].map(v => (
-                    <button key={v} type="button" onClick={() => onValueChange(v)} disabled={disabled} className="px-2 py-1 text-xs rounded border border-border hover:bg-surface-3 text-text-muted transition-colors">${v}</button>
+                    <button key={v} type="button" onClick={() => onValueChange(v)} disabled={disabled} className="w-full px-2 py-1 text-xs rounded border border-border hover:bg-surface-3 text-text-muted transition-colors">${v}</button>
                   ))
                 : [100, 500, 1000, 5000].map(v => (
-                    <button key={v} type="button" onClick={() => onValueChange(v)} disabled={disabled} className="px-2 py-1 text-xs rounded border border-border hover:bg-surface-3 text-text-muted transition-colors">{v}</button>
+                    <button key={v} type="button" onClick={() => onValueChange(v)} disabled={disabled} className="w-full px-2 py-1 text-xs rounded border border-border hover:bg-surface-3 text-text-muted transition-colors">{v}</button>
                   ))
               }
             </div>
@@ -203,48 +204,52 @@ function ModelSelectSection({ label, selected, onRemove, onAdd, onAddPattern, ac
   );
 }
 
+function buildForm(editKey) {
+  if (!editKey) {
+    return {
+      name: "", isRestricted: false, allowedModels: [], expiresAt: "",
+      dailyLimitEnabled: false, dailyLimitMode: "requests",
+      dailyLimitValue: REQUEST_LIMIT_RANGE.min,
+    };
+  }
+  const hasSpend = editKey.maxSpendUsdPerDay != null;
+  const hasReq = editKey.maxRequestsPerDay != null;
+  return {
+    name: editKey.name || "",
+    isRestricted: (editKey.allowedModels?.length ?? 0) > 0,
+    allowedModels: editKey.allowedModels || [],
+    expiresAt: editKey.expiresAt ? editKey.expiresAt.slice(0, 16) : "",
+    dailyLimitEnabled: hasSpend || hasReq,
+    dailyLimitMode: hasSpend ? "spend" : "requests",
+    dailyLimitValue: hasSpend
+      ? editKey.maxSpendUsdPerDay
+      : hasReq ? editKey.maxRequestsPerDay : REQUEST_LIMIT_RANGE.min,
+  };
+}
+
 export default function ApiKeyDrawer({ isOpen, onClose, editKey, onSaved, activeProviders = [] }) {
   const isEdit = !!editKey;
-  const [name, setName] = useState("");
-  const [isRestricted, setIsRestricted] = useState(false);
-  const [allowedModels, setAllowedModels] = useState([]);
-  const [expiresAt, setExpiresAt] = useState("");
-  const [dailyLimitEnabled, setDailyLimitEnabled] = useState(false);
-  const [dailyLimitMode, setDailyLimitMode] = useState("requests");
-  const [dailyLimitValue, setDailyLimitValue] = useState(REQUEST_LIMIT_RANGE.min);
+  const [form, setForm] = useState(() => buildForm(editKey));
+  const { name, isRestricted, allowedModels, expiresAt,
+          dailyLimitEnabled, dailyLimitMode, dailyLimitValue } = form;
+  const setField = (patch) => setForm(f => ({ ...f, ...patch }));
+
   const [saving, setSaving] = useState(false);
   const [createdKey, setCreatedKey] = useState(null);
   const [showCreated, setShowCreated] = useState(false);
   const [error, setError] = useState(null);
 
-  // Populate form when editing
-  useEffect(() => {
-    if (isOpen) {
-      if (editKey) {
-        setName(editKey.name || "");
-        setIsRestricted(editKey.allowedModels?.length > 0);
-        setAllowedModels(editKey.allowedModels || []);
-        setExpiresAt(editKey.expiresAt ? editKey.expiresAt.slice(0, 16) : "");
-
-        const hasSpendLimit = editKey.maxSpendUsdPerDay != null;
-        const hasRequestLimit = editKey.maxRequestsPerDay != null;
-        setDailyLimitEnabled(hasSpendLimit || hasRequestLimit);
-        setDailyLimitMode(hasSpendLimit ? "spend" : "requests");
-        setDailyLimitValue(hasSpendLimit ? editKey.maxSpendUsdPerDay : hasRequestLimit ? editKey.maxRequestsPerDay : REQUEST_LIMIT_RANGE.min);
-      } else {
-        setName("");
-        setIsRestricted(false);
-        setAllowedModels([]);
-        setExpiresAt("");
-        setDailyLimitEnabled(false);
-        setDailyLimitMode("requests");
-        setDailyLimitValue(REQUEST_LIMIT_RANGE.min);
-      }
+  const openKey = isOpen ? (editKey?.id ?? "new") : null;
+  const [prevOpenKey, setPrevOpenKey] = useState(openKey);
+  if (prevOpenKey !== openKey) {
+    setPrevOpenKey(openKey);
+    if (openKey !== null) {
+      setForm(buildForm(editKey));
       setError(null);
       setCreatedKey(null);
       setShowCreated(false);
     }
-  }, [isOpen, editKey]);
+  }
 
   const handleSave = async () => {
     if (!name.trim()) { setError("Key name is required."); return; }
@@ -346,7 +351,7 @@ export default function ApiKeyDrawer({ isOpen, onClose, editKey, onSaved, active
             <Input
               label="Key Name"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => setField({ name: e.target.value })}
               placeholder="Production Key"
               hint="A label to identify this key"
               disabled={saving}
@@ -360,7 +365,7 @@ export default function ApiKeyDrawer({ isOpen, onClose, editKey, onSaved, active
               <input
                 type="datetime-local"
                 value={expiresAt}
-                onChange={(e) => setExpiresAt(e.target.value)}
+                onChange={(e) => setField({ expiresAt: e.target.value })}
                 disabled={saving}
                 className="w-full rounded-[10px] border border-border bg-surface-2 px-3 py-2 text-sm text-text-main outline-none focus:ring-2 focus:ring-brand-500/30 disabled:opacity-50 transition-shadow"
               />
@@ -378,10 +383,12 @@ export default function ApiKeyDrawer({ isOpen, onClose, editKey, onSaved, active
                 </div>
                 <Toggle
                   checked={isRestricted}
-                  onChange={(v) => {
-                    setIsRestricted(v);
-                    if (!v) { setAllowedModels([]); setBlockedModels([]); }
-                  }}
+                onChange={(v) => {
+                  setField({
+                    isRestricted: v,
+                    allowedModels: v ? allowedModels : []
+                  });
+                }}
                   size="sm"
                   disabled={saving}
                 />
@@ -391,9 +398,9 @@ export default function ApiKeyDrawer({ isOpen, onClose, editKey, onSaved, active
                 <div className="flex min-w-0 flex-col gap-3 pl-1 border-l-2 border-primary/20">
                   <ModelSelectSection
                     selected={allowedModels}
-                    onRemove={(v) => setAllowedModels(allowedModels.filter(x => x !== v))}
-                    onAdd={(v) => setAllowedModels(v)}
-                    onAddPattern={(v) => setAllowedModels(v)}
+                    onRemove={(v) => setField({ allowedModels: allowedModels.filter(x => x !== v) })}
+                    onAdd={(v) => setField({ allowedModels: v })}
+                    onAddPattern={(v) => setField({ allowedModels: v })}
                     activeProviders={activeProviders}
                   />
                   <p className="text-xs text-text-muted -mt-1">
@@ -407,16 +414,15 @@ export default function ApiKeyDrawer({ isOpen, onClose, editKey, onSaved, active
             <DailyLimitSection
               enabled={dailyLimitEnabled}
               onToggle={(v) => {
-                setDailyLimitEnabled(v);
-                if (v) setDailyLimitValue(dailyLimitMode === "spend" ? SPEND_LIMIT_RANGE.min : REQUEST_LIMIT_RANGE.min);
+                setField({
+                  dailyLimitEnabled: v,
+                  ...(v ? { dailyLimitValue: dailyLimitMode === "spend" ? SPEND_LIMIT_RANGE.min : REQUEST_LIMIT_RANGE.min } : {})
+                });
               }}
               mode={dailyLimitMode}
-              onModeChange={(m) => {
-                setDailyLimitMode(m);
-                setDailyLimitValue(m === "spend" ? SPEND_LIMIT_RANGE.min : REQUEST_LIMIT_RANGE.min);
-              }}
+              onModeChange={(m) => setField({ dailyLimitMode: m, dailyLimitValue: m === "spend" ? SPEND_LIMIT_RANGE.min : REQUEST_LIMIT_RANGE.min })}
               value={dailyLimitValue}
-              onValueChange={setDailyLimitValue}
+              onValueChange={(v) => setField({ dailyLimitValue: v })}
               disabled={saving}
             />
 
