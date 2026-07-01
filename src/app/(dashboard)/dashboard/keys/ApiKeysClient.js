@@ -45,11 +45,17 @@ function ApiKeyRow({ apiKey, onEdit, onDelete, onToggle, visibleKeys, onToggleVi
   const hasRestrictions = apiKey.allowedModels && apiKey.allowedModels.length > 0;
   const isExpired = apiKey.expiresAt && new Date(apiKey.expiresAt) < new Date();
   const hasDailyLimit = apiKey.maxRequestsPerDay != null || apiKey.maxSpendUsdPerDay != null;
-  const dailyLimitLabel = apiKey.maxSpendUsdPerDay != null
-    ? `$${apiKey.maxSpendUsdPerDay}/day`
-    : apiKey.maxRequestsPerDay != null
-      ? `${apiKey.maxRequestsPerDay} req/day`
-      : null;
+
+  const usage = apiKey.dailyUsage || { requests: 0, cost: 0 };
+  const isSpend = apiKey.maxSpendUsdPerDay != null;
+  const limitVal = isSpend ? apiKey.maxSpendUsdPerDay : apiKey.maxRequestsPerDay;
+  const usedVal = isSpend ? usage.cost : usage.requests;
+  const pct = limitVal ? Math.min(100, Math.round((usedVal / limitVal) * 100)) : 0;
+  const dailyLimitLabel = isSpend
+    ? `$${usage.cost.toFixed(2)}/$${apiKey.maxSpendUsdPerDay}`
+    : `${usage.requests}/${apiKey.maxRequestsPerDay} req`;
+
+  const limitVariant = pct >= 100 ? "error" : pct >= 80 ? "warning" : "primary";
 
   return (
     <div className={`group flex flex-col gap-3 px-4 py-3 border-b border-black/[0.03] dark:border-white/[0.03] last:border-b-0 sm:flex-row sm:items-center sm:justify-between sm:gap-6 ${apiKey.isActive === false ? "opacity-60" : ""} ${isExpired ? "opacity-80" : ""}`}>
@@ -59,7 +65,11 @@ function ApiKeyRow({ apiKey, onEdit, onDelete, onToggle, visibleKeys, onToggleVi
         <div className="flex items-center gap-2">
           <p className="text-sm font-medium">{apiKey.name || "Unnamed"}</p>
           {hasRestrictions && <Badge variant="warning" size="sm">Restricted</Badge>}
-          {hasDailyLimit && <Badge variant="primary" size="sm" title={dailyLimitLabel}>{dailyLimitLabel}</Badge>}
+          {hasDailyLimit && (
+            <Badge variant={limitVariant} size="sm" title={`${pct}% used today`}>
+              {dailyLimitLabel}/day
+            </Badge>
+          )}
         </div>
 
         {/* Key value row */}
@@ -165,7 +175,7 @@ export default function ApiKeysClient() {
     }
   };
 
-  useEffect(() => { fetchKeys(); }, []);
+  useEffect(() => { void Promise.resolve().then(fetchKeys); }, []);
 
   const toggleVisibility = (id) => {
     setVisibleKeys((prev) => {

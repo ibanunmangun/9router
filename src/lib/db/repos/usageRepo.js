@@ -808,6 +808,29 @@ export async function getDailyUsageForApiKey(apiKey) {
   }
 }
 
+export async function getBulkDailyUsage() {
+  try {
+    const db = await getAdapter();
+    const dateKey = getLocalDateKey();
+    const row = db.get(`SELECT data FROM usageDaily WHERE dateKey = ?`, [dateKey]);
+    if (!row) return {};
+    const day = parseJson(row.data, {});
+    const byApiKey = day.byApiKey || {};
+    const result = {};
+    for (const [k, v] of Object.entries(byApiKey)) {
+      const apiKey = k.split("|")[0];
+      if (!apiKey) continue;
+      if (!result[apiKey]) result[apiKey] = { requests: 0, cost: 0 };
+      result[apiKey].requests += v.requests || 0;
+      result[apiKey].cost += v.cost || 0;
+    }
+    return result;
+  } catch (e) {
+    console.error("[usageRepo] getBulkDailyUsage failed:", e.message);
+    return {};
+  }
+}
+
 export function getRequestCountsByApiKey() {
   try {
     const db = getAdapterSync();
