@@ -41,21 +41,29 @@ function DailyLimitSection({ enabled, onToggle, mode, onModeChange, value, onVal
             onChange={onModeChange}
             size="sm"
           />
-          <div className="flex flex-col gap-2">
-            <input
-              type="range"
-              min={range.min}
-              max={range.max}
-              step={range.step}
-              value={value}
-              onChange={(e) => onValueChange(Number(e.target.value))}
-              disabled={disabled}
-              className="w-full accent-brand-500"
-            />
-            <div className="flex items-center justify-between text-xs text-text-muted">
-              <span>{mode === "spend" ? `$${range.min}` : range.min}</span>
-              <span className="text-sm font-medium text-text-main">{display} / day</span>
-              <span>{mode === "spend" ? `$${range.max}` : range.max}</span>
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-text-main w-8 text-center">{mode === "spend" ? "$" : ""}</span>
+              <input
+                type="number"
+                min={range.min}
+                step={range.step}
+                value={value}
+                onChange={(e) => onValueChange(Math.max(range.min, Number(e.target.value)))}
+                disabled={disabled}
+                className="flex-1 rounded-[10px] border border-border bg-surface-2 px-3 py-1.5 text-sm text-text-main outline-none focus:ring-2 focus:ring-brand-500/30"
+              />
+              <span className="text-sm font-medium text-text-main w-12">{mode === "spend" ? "USD" : "req"}</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {mode === "spend" 
+                ? [5, 10, 50, 100].map(v => (
+                    <button key={v} type="button" onClick={() => onValueChange(v)} disabled={disabled} className="px-2 py-1 text-xs rounded border border-border hover:bg-surface-3 text-text-muted transition-colors">${v}</button>
+                  ))
+                : [100, 500, 1000, 5000].map(v => (
+                    <button key={v} type="button" onClick={() => onValueChange(v)} disabled={disabled} className="px-2 py-1 text-xs rounded border border-border hover:bg-surface-3 text-text-muted transition-colors">{v}</button>
+                  ))
+              }
             </div>
           </div>
         </div>
