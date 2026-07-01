@@ -1,4 +1,4 @@
-import { getProviderConnections, validateApiKey, updateProviderConnection, getSettings, getApiKeyMetadata } from "@/lib/localDb";
+import { getProviderConnections, validateApiKey, updateProviderConnection, getSettings, getApiKeyMetadata, getDailyUsageForApiKey } from "@/lib/localDb";
 import { modelPatternMatches } from "@/shared/utils/modelPermissions.js";
 import { resolveConnectionProxyConfig } from "@/lib/network/connectionProxy";
 import { formatRetryAfter, checkFallbackError, isModelLockActive, buildModelLockUpdate, getEarliestModelLockUntil } from "open-sse/services/accountFallback.js";
@@ -331,4 +331,31 @@ export async function isModelAllowedForKey(apiKey, modelId) {
   if (!metadata) return true;
   if (!metadata.allowedModels || metadata.allowedModels.length === 0) return true;
   return metadata.allowedModels.some((p) => modelPatternMatches(p, [modelId]));
+}
+
+/**
+ * Check a key's daily request-count/spend limits against today's recorded usage.
+ * Cost is only known after a request completes, so this checks already-recorded
+ * usage against the cap — the request that crosses the cap still succeeds, the
+ * next one is blocked. Runs regardless of the requireApiKey setting.
+ *
+ * @param {string} apiKey
+ * @returns {Promise<{allowed: boolean, reason?: string}>}
+ */
+export async function checkDailyLimit(apiKey) {
+  if (!apiKey) return { allowed: true };
+
+  const metadata = await getApiKeyMetadata(apiKey);
+  if (!metadata) return { allowed: true };
+  if (metadata.maxRequestsPerDay == null && metadata.maxSpendUsdPerDay == null) return { allowed: true };
+
+  const usage = await getDailyUsageForApiKey(apiKey);
+
+  if (metadata.maxRequestsPerDay != null && usage.requests >= metadata.maxRequestsPerDay) {
+    return { allowed: false, reason: `Daily request limit reached (${usage.requests}/${metadata.maxRequestsPerDay})` };
+  }
+  if (metadata.maxSpendUsdPerDay != null && usage.cost >= metadata.maxSpendUsdPerDay) {
+    return { allowed: false, reason: `Daily spend limit reached ($${usage.cost.toFixed(4)}/$${metadata.maxSpendUsdPerDay})` };
+  }
+  return { allowed: true };
 }

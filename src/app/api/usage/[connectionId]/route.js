@@ -1,7 +1,7 @@
 // Ensure proxyFetch is loaded to patch globalThis.fetch
 import "open-sse/index.js";
 
-import { getProviderConnectionById, updateProviderConnection } from "@/lib/localDb";
+import { getProviderConnectionById, updateProviderConnection, getSettings } from "@/lib/localDb";
 import { getUsageForProvider } from "open-sse/services/usage.js";
 import { getExecutor } from "open-sse/executors/index.js";
 import { resolveConnectionProxyConfig } from "@/lib/network/connectionProxy";
@@ -13,6 +13,41 @@ function isAuthExpiredMessage(usage) {
   if (!usage?.message) return false;
   const msg = usage.message.toLowerCase();
   return AUTH_EXPIRED_PATTERNS.some((p) => msg.includes(p));
+}
+
+function toFiniteNumber(value) {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
+}
+
+function getRemainingPercent(quota) {
+  if (!quota || quota.unlimited === true) return null;
+
+  const explicitPercent = toFiniteNumber(quota.remainingPercentage);
+  if (explicitPercent !== null) return Math.max(0, Math.min(100, explicitPercent));
+
+  const total = toFiniteNumber(quota.total);
+  if (total === null || total <= 0) return null;
+
+  const remaining = toFiniteNumber(quota.remaining);
+  if (remaining !== null) return Math.max(0, Math.min(100, (remaining / total) * 100));
+
+  const used = toFiniteNumber(quota.used);
+  if (used === null) return null;
+  return Math.max(0, Math.min(100, ((total - used) / total) * 100));
+}
+
+function shouldAutoDisableForLowQuota(usage, thresholdPercent) {
+  const quotas = Object.values(usage?.quotas || {});
+  const remainingPercents = quotas
+    .map(getRemainingPercent)
+    .filter((value) => value !== null);
+
+  return remainingPercents.length > 0 && remainingPercents.every((value) => value <= thresholdPercent);
 }
 
 /**
@@ -179,6 +214,18 @@ export async function GET(request, { params }) {
         usage = await getUsageForProvider(connection, proxyOptions);
       } catch (retryError) {
         console.warn(`[Usage] ${connection.provider}: force refresh failed: ${retryError.message}`);
+      }
+    }
+
+    if (connection.isActive !== false) {
+      const settings = await getSettings();
+      if (settings.quotaAutoDisableEnabled === true) {
+        const threshold = toFiniteNumber(settings.quotaAutoDisableThresholdPercent) ?? 2;
+        if (shouldAutoDisableForLowQuota(usage, threshold)) {
+          console.log(`[Usage] ${connection.provider}:${connection.id}: Auto-disabling due to all quotas <= ${threshold}%`);
+          await updateProviderConnection(connection.id, { isActive: false, updatedAt: new Date().toISOString() });
+          usage.autoDisabled = true;
+        }
       }
     }
 

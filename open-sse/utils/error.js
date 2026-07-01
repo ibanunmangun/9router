@@ -129,6 +129,25 @@ export function unavailableResponse(statusCode, message, retryAfter, retryAfterH
 }
 
 /**
+ * Create 429 response for a per-key daily rate/spend limit breach.
+ * Retry-After is seconds until local midnight (when usageDaily rolls to a new dateKey).
+ * @param {string} message - Error message
+ * @returns {Response}
+ */
+export function dailyLimitExceededResponse(message) {
+  const now = new Date();
+  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  const retryAfterSec = Math.max(Math.ceil((midnight.getTime() - now.getTime()) / 1000), 1);
+  return new Response(JSON.stringify(buildErrorBody(429, message)), {
+    status: 429,
+    headers: {
+      "Content-Type": "application/json",
+      "Retry-After": String(retryAfterSec)
+    }
+  });
+}
+
+/**
  * Format provider error with context
  * @param {Error} error - Original error
  * @param {string} provider - Provider name

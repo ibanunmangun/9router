@@ -257,6 +257,39 @@ export default function ProfilePage() {
     }
   };
 
+  const updateQuotaAutoDisable = async (enabled) => {
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ quotaAutoDisableEnabled: enabled }),
+      });
+      if (res.ok) {
+        setSettings(prev => ({ ...prev, quotaAutoDisableEnabled: enabled }));
+      }
+    } catch (err) {
+      console.error("Failed to update quota auto-disable:", err);
+    }
+  };
+
+  const updateQuotaAutoDisableThreshold = async (threshold) => {
+    const num = parseInt(threshold);
+    if (isNaN(num) || num < 0 || num > 100) return;
+
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ quotaAutoDisableThresholdPercent: num }),
+      });
+      if (res.ok) {
+        setSettings(prev => ({ ...prev, quotaAutoDisableThresholdPercent: num }));
+      }
+    } catch (err) {
+      console.error("Failed to update quota auto-disable threshold:", err);
+    }
+  };
+
   const updateStickyLimit = async (limit) => {
     const numLimit = parseInt(limit);
     if (isNaN(numLimit) || numLimit < 1) return;
@@ -1003,6 +1036,41 @@ export default function ProfilePage() {
                 ? ` Combos rotate after ${settings.comboStickyRoundRobinLimit || 1} call${(settings.comboStickyRoundRobinLimit || 1) === 1 ? "" : "s"} per model.`
                 : " Combos always start with their first model."}
             </p>
+
+            {/* Quota Auto-Disable */}
+            <div className="flex items-start sm:items-center justify-between gap-4 pt-4 border-t border-border/50">
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm sm:text-base">Auto-Disable Low Quota</p>
+                <p className="text-xs sm:text-sm text-text-muted">
+                  Turn off accounts when all quotas fall to or below the threshold
+                </p>
+              </div>
+              <Toggle
+                checked={settings.quotaAutoDisableEnabled === true}
+                onChange={() => updateQuotaAutoDisable(!(settings.quotaAutoDisableEnabled === true))}
+                disabled={loading}
+              />
+            </div>
+
+            {settings.quotaAutoDisableEnabled === true && (
+              <div className="flex items-start sm:items-center justify-between gap-4 pt-2 border-t border-border/50">
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm sm:text-base">Threshold (%)</p>
+                  <p className="text-xs sm:text-sm text-text-muted">
+                    Disable when every quota bar is at or below this percentage
+                  </p>
+                </div>
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={settings.quotaAutoDisableThresholdPercent ?? 2}
+                  onChange={(e) => updateQuotaAutoDisableThreshold(e.target.value)}
+                  disabled={loading}
+                  className="w-16 sm:w-20 text-center shrink-0"
+                />
+              </div>
+            )}
           </div>
         </Card>
 

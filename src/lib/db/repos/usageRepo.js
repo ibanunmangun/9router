@@ -779,6 +779,58 @@ export async function getRecentLogs(limit = 200) {
   }
 }
 
+/**
+ * Sum today's requests + cost for a single API key from usageDaily.byApiKey
+ * (bucketed per apiKey|model|provider — sum every entry whose key starts with apiKey+"|").
+ * Used by the daily rate/spend limit gate. Cheap: one row read, no full-history scan.
+ */
+export async function getDailyUsageForApiKey(apiKey) {
+  if (!apiKey) return { requests: 0, cost: 0 };
+  try {
+    const db = await getAdapter();
+    const dateKey = getLocalDateKey();
+    const row = db.get(`SELECT data FROM usageDaily WHERE dateKey = ?`, [dateKey]);
+    if (!row) return { requests: 0, cost: 0 };
+    const day = parseJson(row.data, {});
+    const byApiKey = day.byApiKey || {};
+    const prefix = `${apiKey}|`;
+    let requests = 0, cost = 0;
+    for (const [k, v] of Object.entries(byApiKey)) {
+      if (k.startsWith(prefix)) {
+        requests += v.requests || 0;
+        cost += v.cost || 0;
+      }
+    }
+    return { requests, cost };
+  } catch (e) {
+    console.error("[usageRepo] getDailyUsageForApiKey failed:", e.message);
+    return { requests: 0, cost: 0 };
+  }
+}
+
+export async function getBulkDailyUsage() {
+  try {
+    const db = await getAdapter();
+    const dateKey = getLocalDateKey();
+    const row = db.get(`SELECT data FROM usageDaily WHERE dateKey = ?`, [dateKey]);
+    if (!row) return {};
+    const day = parseJson(row.data, {});
+    const byApiKey = day.byApiKey || {};
+    const result = {};
+    for (const [k, v] of Object.entries(byApiKey)) {
+      const apiKey = k.split("|")[0];
+      if (!apiKey) continue;
+      if (!result[apiKey]) result[apiKey] = { requests: 0, cost: 0 };
+      result[apiKey].requests += v.requests || 0;
+      result[apiKey].cost += v.cost || 0;
+    }
+    return result;
+  } catch (e) {
+    console.error("[usageRepo] getBulkDailyUsage failed:", e.message);
+    return {};
+  }
+}
+
 export function getRequestCountsByApiKey() {
   try {
     const db = getAdapterSync();
