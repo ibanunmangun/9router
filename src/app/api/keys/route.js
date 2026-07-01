@@ -19,7 +19,7 @@ export async function GET() {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { name, allowedModels, blockedModels, allowedCombos, scopes, expiresAt } = body;
+    const { name, allowedModels, blockedModels, allowedCombos, scopes, expiresAt, maxRequestsPerDay, maxSpendUsdPerDay } = body;
 
     if (!name) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
@@ -33,6 +33,8 @@ export async function POST(request) {
       allowedCombos,
       scopes,
       expiresAt,
+      maxRequestsPerDay,
+      maxSpendUsdPerDay,
     });
 
     return NextResponse.json({
@@ -45,6 +47,8 @@ export async function POST(request) {
       allowedCombos: apiKey.allowedCombos,
       scopes: apiKey.scopes,
       expiresAt: apiKey.expiresAt,
+      maxRequestsPerDay: apiKey.maxRequestsPerDay,
+      maxSpendUsdPerDay: apiKey.maxSpendUsdPerDay,
     }, { status: 201 });
   } catch (error) {
     console.log("Error creating key:", error);

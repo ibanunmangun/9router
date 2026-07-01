@@ -7,13 +7,14 @@ import {
   extractApiKey,
   isValidApiKey,
   isModelAllowedForKey,
+  checkDailyLimit,
 } from "../services/auth.js";
 import { cacheClaudeHeaders } from "open-sse/utils/claudeHeaderCache.js";
 import { getSettings } from "@/lib/localDb";
 import { getModelInfo, getComboModels } from "../services/model.js";
 import { handleChatCore } from "open-sse/handlers/chatCore.js";
 import { DEFAULT_HEADROOM_URL } from "@/lib/headroom/detect";
-import { errorResponse, unavailableResponse } from "open-sse/utils/error.js";
+import { errorResponse, unavailableResponse, dailyLimitExceededResponse } from "open-sse/utils/error.js";
 import { handleComboChat, handleFusionChat } from "open-sse/services/combo.js";
 import { handleBypassRequest } from "open-sse/utils/bypassHandler.js";
 import { HTTP_STATUS } from "open-sse/config/runtimeConfig.js";
@@ -87,6 +88,16 @@ export async function handleChat(request, clientRawRequest = null) {
         log.warn("AUTH", `Model "${modelStr}" not allowed for this API key`);
         return errorResponse(HTTP_STATUS.FORBIDDEN, `Model "${modelStr}" is not allowed for this API key`);
       }
+    }
+  }
+
+  // Enforce per-key daily request/spend limits, independent of requireApiKey —
+  // if a key has a limit configured, it applies whenever that key is presented.
+  if (apiKey) {
+    const dailyCheck = await checkDailyLimit(apiKey);
+    if (!dailyCheck.allowed) {
+      log.warn("AUTH", dailyCheck.reason);
+      return dailyLimitExceededResponse(dailyCheck.reason);
     }
   }
 

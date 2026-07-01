@@ -29,6 +29,8 @@ function rowToKey(row) {
     scopes: parseJsonArray(row.scopes, ["manage"]),
     expiresAt: row.expiresAt || null,
     lastUsedAt: row.lastUsedAt || null,
+    maxRequestsPerDay: row.maxRequestsPerDay ?? null,
+    maxSpendUsdPerDay: row.maxSpendUsdPerDay ?? null,
     createdAt: row.createdAt,
   };
 }
@@ -50,6 +52,8 @@ function keyToRow(key) {
     scopes: JSON.stringify(key.scopes || ["manage"]),
     expiresAt: key.expiresAt || null,
     lastUsedAt: key.lastUsedAt || null,
+    maxRequestsPerDay: key.maxRequestsPerDay ?? null,
+    maxSpendUsdPerDay: key.maxSpendUsdPerDay ?? null,
     createdAt: key.createdAt,
   };
 }
@@ -85,13 +89,15 @@ export async function createApiKey(name, machineId, extra = {}) {
     scopes: extra.scopes || ["manage"],
     expiresAt: extra.expiresAt || null,
     lastUsedAt: null,
+    maxRequestsPerDay: extra.maxRequestsPerDay ?? null,
+    maxSpendUsdPerDay: extra.maxSpendUsdPerDay ?? null,
     createdAt: now,
   };
 
   const r = keyToRow(key);
   db.run(
-    `INSERT INTO apiKeys(id, key, name, machineId, isActive, allowedModels, blockedModels, allowedCombos, scopes, expiresAt, lastUsedAt, createdAt) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [r.id, r.key, r.name, r.machineId, r.isActive, r.allowedModels, r.blockedModels, r.allowedCombos, r.scopes, r.expiresAt, r.lastUsedAt, r.createdAt]
+    `INSERT INTO apiKeys(id, key, name, machineId, isActive, allowedModels, blockedModels, allowedCombos, scopes, expiresAt, lastUsedAt, maxRequestsPerDay, maxSpendUsdPerDay, createdAt) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [r.id, r.key, r.name, r.machineId, r.isActive, r.allowedModels, r.blockedModels, r.allowedCombos, r.scopes, r.expiresAt, r.lastUsedAt, r.maxRequestsPerDay, r.maxSpendUsdPerDay, r.createdAt]
   );
   return key;
 }
@@ -114,12 +120,14 @@ export async function updateApiKey(id, data) {
       ...(data.allowedCombos !== undefined ? { allowedCombos: data.allowedCombos } : {}),
       ...(data.scopes !== undefined ? { scopes: data.scopes } : {}),
       ...(data.expiresAt !== undefined ? { expiresAt: data.expiresAt } : {}),
+      ...(data.maxRequestsPerDay !== undefined ? { maxRequestsPerDay: data.maxRequestsPerDay } : {}),
+      ...(data.maxSpendUsdPerDay !== undefined ? { maxSpendUsdPerDay: data.maxSpendUsdPerDay } : {}),
     };
 
     const r = keyToRow(merged);
     db.run(
-      `UPDATE apiKeys SET key=?, name=?, machineId=?, isActive=?, allowedModels=?, blockedModels=?, allowedCombos=?, scopes=?, expiresAt=? WHERE id=?`,
-      [r.key, r.name, r.machineId, r.isActive, r.allowedModels, r.blockedModels, r.allowedCombos, r.scopes, r.expiresAt, id]
+      `UPDATE apiKeys SET key=?, name=?, machineId=?, isActive=?, allowedModels=?, blockedModels=?, allowedCombos=?, scopes=?, expiresAt=?, maxRequestsPerDay=?, maxSpendUsdPerDay=? WHERE id=?`,
+      [r.key, r.name, r.machineId, r.isActive, r.allowedModels, r.blockedModels, r.allowedCombos, r.scopes, r.expiresAt, r.maxRequestsPerDay, r.maxSpendUsdPerDay, id]
     );
     result = merged;
   });

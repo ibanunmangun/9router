@@ -32,6 +32,7 @@ export async function PATCH(request, { params }) {
     const updatableFields = [
       "name", "isActive", "allowedModels", "blockedModels",
       "allowedCombos", "scopes", "expiresAt",
+      "maxRequestsPerDay", "maxSpendUsdPerDay",
     ];
     for (const field of updatableFields) {
       if (body[field] !== undefined) {
@@ -66,6 +67,8 @@ export async function PUT(request, { params }) {
     if (body.allowedCombos !== undefined) updateData.allowedCombos = body.allowedCombos;
     if (body.scopes !== undefined) updateData.scopes = body.scopes;
     if (body.expiresAt !== undefined) updateData.expiresAt = body.expiresAt;
+    if (body.maxRequestsPerDay !== undefined) updateData.maxRequestsPerDay = body.maxRequestsPerDay;
+    if (body.maxSpendUsdPerDay !== undefined) updateData.maxSpendUsdPerDay = body.maxSpendUsdPerDay;
 
     const updated = await updateApiKey(id, updateData);
     return NextResponse.json({ key: updated });

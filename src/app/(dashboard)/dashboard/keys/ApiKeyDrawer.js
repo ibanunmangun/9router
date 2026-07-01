@@ -7,7 +7,62 @@ import Button from "@/shared/components/Button";
 import Input from "@/shared/components/Input";
 import Toggle from "@/shared/components/Toggle";
 import Badge from "@/shared/components/Badge";
+import SegmentedControl from "@/shared/components/SegmentedControl";
 import ModelSelectModal from "@/shared/components/ModelSelectModal";
+
+const REQUEST_LIMIT_RANGE = { min: 10, max: 5000, step: 10 };
+const SPEND_LIMIT_RANGE = { min: 1, max: 500, step: 1 };
+
+/** Toggle + segmented mode + range slider for daily request/spend caps */
+function DailyLimitSection({ enabled, onToggle, mode, onModeChange, value, onValueChange, disabled }) {
+  const range = mode === "spend" ? SPEND_LIMIT_RANGE : REQUEST_LIMIT_RANGE;
+  const display = mode === "spend" ? `$${value}` : `${value} req`;
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-text-main">Daily Limits</p>
+          <p className="text-xs text-text-muted">
+            Cap this key to a max requests or max spend per day
+          </p>
+        </div>
+        <Toggle checked={enabled} onChange={onToggle} size="sm" disabled={disabled} />
+      </div>
+
+      {enabled && (
+        <div className="flex min-w-0 flex-col gap-3 pl-1 border-l-2 border-primary/20">
+          <SegmentedControl
+            options={[
+              { value: "requests", label: "Max Requests", icon: "tag" },
+              { value: "spend", label: "Max Spend", icon: "attach_money" },
+            ]}
+            value={mode}
+            onChange={onModeChange}
+            size="sm"
+          />
+          <div className="flex flex-col gap-2">
+            <input
+              type="range"
+              min={range.min}
+              max={range.max}
+              step={range.step}
+              value={value}
+              onChange={(e) => onValueChange(Number(e.target.value))}
+              disabled={disabled}
+              className="w-full accent-brand-500"
+            />
+            <div className="flex items-center justify-between text-xs text-text-muted">
+              <span>{mode === "spend" ? `$${range.min}` : range.min}</span>
+              <span className="text-sm font-medium text-text-main">{display} / day</span>
+              <span>{mode === "spend" ? `$${range.max}` : range.max}</span>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 /** Removable chip for a selected model or pattern */
 function SelectionChip({ value, onRemove }) {
@@ -146,6 +201,9 @@ export default function ApiKeyDrawer({ isOpen, onClose, editKey, onSaved, active
   const [isRestricted, setIsRestricted] = useState(false);
   const [allowedModels, setAllowedModels] = useState([]);
   const [expiresAt, setExpiresAt] = useState("");
+  const [dailyLimitEnabled, setDailyLimitEnabled] = useState(false);
+  const [dailyLimitMode, setDailyLimitMode] = useState("requests");
+  const [dailyLimitValue, setDailyLimitValue] = useState(REQUEST_LIMIT_RANGE.min);
   const [saving, setSaving] = useState(false);
   const [createdKey, setCreatedKey] = useState(null);
   const [showCreated, setShowCreated] = useState(false);
@@ -159,11 +217,20 @@ export default function ApiKeyDrawer({ isOpen, onClose, editKey, onSaved, active
         setIsRestricted(editKey.allowedModels?.length > 0);
         setAllowedModels(editKey.allowedModels || []);
         setExpiresAt(editKey.expiresAt ? editKey.expiresAt.slice(0, 16) : "");
+
+        const hasSpendLimit = editKey.maxSpendUsdPerDay != null;
+        const hasRequestLimit = editKey.maxRequestsPerDay != null;
+        setDailyLimitEnabled(hasSpendLimit || hasRequestLimit);
+        setDailyLimitMode(hasSpendLimit ? "spend" : "requests");
+        setDailyLimitValue(hasSpendLimit ? editKey.maxSpendUsdPerDay : hasRequestLimit ? editKey.maxRequestsPerDay : REQUEST_LIMIT_RANGE.min);
       } else {
         setName("");
         setIsRestricted(false);
         setAllowedModels([]);
         setExpiresAt("");
+        setDailyLimitEnabled(false);
+        setDailyLimitMode("requests");
+        setDailyLimitValue(REQUEST_LIMIT_RANGE.min);
       }
       setError(null);
       setCreatedKey(null);
@@ -184,6 +251,8 @@ export default function ApiKeyDrawer({ isOpen, onClose, editKey, onSaved, active
       allowedModels: isRestricted ? allowedModels : [],
       blockedModels: [],
       ...(expiresAt ? { expiresAt: new Date(expiresAt).toISOString() } : {}),
+      maxRequestsPerDay: dailyLimitEnabled && dailyLimitMode === "requests" ? dailyLimitValue : null,
+      maxSpendUsdPerDay: dailyLimitEnabled && dailyLimitMode === "spend" ? dailyLimitValue : null,
     };
 
     try {
@@ -325,6 +394,23 @@ export default function ApiKeyDrawer({ isOpen, onClose, editKey, onSaved, active
                 </div>
               )}
             </div>
+
+            {/* Daily request/spend limits */}
+            <DailyLimitSection
+              enabled={dailyLimitEnabled}
+              onToggle={(v) => {
+                setDailyLimitEnabled(v);
+                if (v) setDailyLimitValue(dailyLimitMode === "spend" ? SPEND_LIMIT_RANGE.min : REQUEST_LIMIT_RANGE.min);
+              }}
+              mode={dailyLimitMode}
+              onModeChange={(m) => {
+                setDailyLimitMode(m);
+                setDailyLimitValue(m === "spend" ? SPEND_LIMIT_RANGE.min : REQUEST_LIMIT_RANGE.min);
+              }}
+              value={dailyLimitValue}
+              onValueChange={setDailyLimitValue}
+              disabled={saving}
+            />
 
             {/* Error */}
             {error && (
