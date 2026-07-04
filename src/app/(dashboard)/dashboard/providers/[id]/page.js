@@ -655,6 +655,14 @@ export default function ProviderDetailPage() {
     });
   };
 
+  const getFailedTestConnectionIds = (errorFilter) => connections
+    .filter((conn) => {
+      const result = oneByOneResults[conn.id];
+      if (result?.state !== "failed") return false;
+      return errorFilter === undefined || (result.error || "Unknown error") === errorFilter;
+    })
+    .map((conn) => conn.id);
+
   const handleBulkDelete = () => {
     const count = selectedConnectionIds.length;
     if (count === 0) return;
@@ -677,6 +685,46 @@ export default function ProviderDetailPage() {
         setConnections(prev => prev.filter(c => !idsToDelete.includes(c.id)));
         setSelectedConnectionIds([]);
         if (failed > 0) alert(`Deleted ${idsToDelete.length - failed} connection(s), ${failed} failed.`);
+      }
+    });
+  };
+
+  const handleBulkDeleteByTestError = (errorFilter) => {
+    const idsToDelete = getFailedTestConnectionIds(errorFilter);
+    const count = idsToDelete.length;
+    if (count === 0) return;
+
+    const errorLabel = errorFilter === undefined ? "failed tests" : `"${errorFilter}"`;
+
+    setConfirmState({
+      title: `Delete ${count} Failed Connection${count > 1 ? "s" : ""}`,
+      message: `Delete ${count} connection${count > 1 ? "s" : ""} with ${errorLabel}? This cannot be undone.`,
+      onConfirm: async () => {
+        setConfirmState(null);
+        let failed = 0;
+        const deletedIds = [];
+        for (const id of idsToDelete) {
+          try {
+            const res = await fetch(`/api/providers/${id}`, { method: "DELETE" });
+            if (res.ok) {
+              deletedIds.push(id);
+            } else {
+              failed += 1;
+            }
+          } catch (error) {
+            console.log("Error deleting connection:", error);
+            failed += 1;
+          }
+        }
+
+        setConnections(prev => prev.filter(c => !deletedIds.includes(c.id)));
+        setSelectedConnectionIds(prev => prev.filter(id => !deletedIds.includes(id)));
+        setOneByOneResults(prev => {
+          const next = { ...prev };
+          deletedIds.forEach(id => delete next[id]);
+          return next;
+        });
+        if (failed > 0) alert(`Deleted ${deletedIds.length} connection(s), ${failed} failed.`);
       }
     });
   };
@@ -778,6 +826,13 @@ export default function ProviderDetailPage() {
 
   const selectedConnections = connections.filter((conn) => selectedConnectionIds.includes(conn.id));
   const allSelected = connections.length > 0 && selectedConnectionIds.length === connections.length;
+  const failedTestGroups = connections.reduce((groups, conn) => {
+    const result = oneByOneResults[conn.id];
+    if (result?.state !== "failed") return groups;
+    const label = result.error || "Unknown error";
+    groups[label] = (groups[label] || 0) + 1;
+    return groups;
+  }, {});
 
   const toggleSelectConnection = (connectionId) => {
     setSelectedConnectionIds((prev) => (
@@ -1491,6 +1546,15 @@ export default function ProviderDetailPage() {
                     <span>Completed: {oneByOneSummary.completed}</span>
                     <span>Passed: {oneByOneSummary.passed}</span>
                     <span>Failed: {oneByOneSummary.failed}</span>
+                    {oneByOneSummary.failed > 0 && !oneByOneRunning && (
+                      <button
+                        type="button"
+                        onClick={() => handleBulkDeleteByTestError()}
+                        className="ml-auto rounded border border-red-500/30 px-2 py-0.5 font-medium text-red-600 transition-colors hover:bg-red-500/10 dark:text-red-400"
+                      >
+                        Delete failed ({oneByOneSummary.failed})
+                      </button>
+                    )}
                     {oneByOneSummary.stopped && (
                       <span className="text-amber-600 dark:text-amber-400">Stopped</span>
                     )}
@@ -1498,6 +1562,21 @@ export default function ProviderDetailPage() {
                       <span>Running: {connections.find((conn) => conn.id === oneByOneCurrentConnectionId)?.name || oneByOneCurrentConnectionId}</span>
                     )}
                   </div>
+                  {oneByOneSummary.failed > 0 && !oneByOneRunning && Object.keys(failedTestGroups).length > 1 && (
+                    <div className="mt-2 flex flex-wrap gap-2 border-t border-black/10 pt-2 dark:border-white/10">
+                      {Object.entries(failedTestGroups).map(([error, count]) => (
+                        <button
+                          key={error}
+                          type="button"
+                          onClick={() => handleBulkDeleteByTestError(error)}
+                          title={`Delete ${count} with ${error}`}
+                          className="max-w-full truncate rounded border border-red-500/20 px-2 py-0.5 text-[11px] text-red-600 transition-colors hover:bg-red-500/10 dark:text-red-400"
+                        >
+                          Delete {count}: {error.length > 32 ? `${error.slice(0, 32)}…` : error}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
               {connections.length > 0 && (
