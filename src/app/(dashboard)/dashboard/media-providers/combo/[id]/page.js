@@ -6,9 +6,11 @@ import Link from "next/link";
 import { Card, Button, Input, Toggle, ModelSelectModal } from "@/shared/components";
 import ProviderIcon from "@/shared/components/ProviderIcon";
 import { AI_PROVIDERS, MEDIA_PROVIDER_KINDS } from "@/shared/constants/providers";
+import { getComboModelValue } from "@/shared/utils/comboModels";
 
 // Parse "providerId/model" or just "providerId" → { providerId, model }
 function parseModelEntry(entry) {
+  entry = getComboModelValue(entry);
   if (typeof entry !== "string") return { providerId: "", model: "" };
   const idx = entry.indexOf("/");
   if (idx < 0) return { providerId: entry, model: "" };
@@ -120,7 +122,7 @@ export default function ComboDetailPage() {
 
   const handleAddModel = async (model) => {
     const value = model?.value || model;
-    if (!value || providers.includes(value)) return;
+    if (!value || providers.some((entry) => getComboModelValue(entry) === value)) return;
     const next = [...providers, value];
     setProviders(next);
     await saveCombo({ models: next });
@@ -128,8 +130,8 @@ export default function ComboDetailPage() {
 
   const handleDeselectModel = async (model) => {
     const value = model?.value || model;
-    if (!value || !providers.includes(value)) return;
-    const next = providers.filter((p) => p !== value);
+    if (!value || !providers.some((entry) => getComboModelValue(entry) === value)) return;
+    const next = providers.filter((entry) => getComboModelValue(entry) !== value);
     setProviders(next);
     await saveCombo({ models: next });
   };
@@ -294,10 +296,11 @@ export default function ComboDetailPage() {
         ) : (
           <div className="flex flex-col gap-2">
             {providers.map((entry, idx) => {
+              const value = getComboModelValue(entry);
               const { providerId, model } = parseModelEntry(entry);
               const p = AI_PROVIDERS[providerId];
               return (
-                <div key={`${entry}-${idx}`} className="flex items-center gap-3 p-2 rounded-lg bg-black/[0.02] dark:bg-white/[0.02]">
+                <div key={`${value}-${idx}`} className="flex items-center gap-3 p-2 rounded-lg bg-black/[0.02] dark:bg-white/[0.02]">
                   <span className="text-xs text-text-muted w-5 text-center">{idx + 1}</span>
                   <ProviderIcon
                     src={`/providers/${providerId}.png`}
@@ -402,7 +405,7 @@ export default function ComboDetailPage() {
         modelAliases={modelAliases}
         title={`Add ${kindLabel} Model`}
         kindFilter={combo.kind}
-        addedModelValues={providers}
+        addedModelValues={providers.map(getComboModelValue)}
         closeOnSelect={false}
       />
     </div>
