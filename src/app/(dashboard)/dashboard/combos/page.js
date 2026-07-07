@@ -7,6 +7,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { restrictToVerticalAxis, restrictToParentElement } from "@dnd-kit/modifiers";
 import { Card, Button, Modal, Input, CardSkeleton, ModelSelectModal, ConfirmModal, CapacityBadges, Select } from "@/shared/components";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
+import { resolveProviderId } from "@/shared/constants/providers";
 import { getComboModelConnectionId, getComboModelValue, setComboModelConnectionId, setComboModelValue } from "@/shared/utils/comboModels";
 
 // Validate combo name: only a-z, A-Z, 0-9, -, _
@@ -372,7 +373,12 @@ function ModelItem({ id, index, entry, activeProviders, isFirst, isLast, onEdit,
   const connectionId = getComboModelConnectionId(entry);
   const [draft, setDraft] = useState(model);
   const providerPrefix = getProviderPrefix(model);
-  const connections = activeProviders.filter((p) => p.provider === providerPrefix || p.providerSpecificData?.prefix === providerPrefix);
+  const providerId = resolveProviderId(providerPrefix);
+  const connections = activeProviders.filter((p) => (
+    p.provider === providerId ||
+    p.provider === providerPrefix ||
+    p.providerSpecificData?.prefix === providerPrefix
+  ));
 
   useEffect(() => {
     if (!editing) setDraft(model);
