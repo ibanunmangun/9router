@@ -7,7 +7,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { restrictToVerticalAxis, restrictToParentElement } from "@dnd-kit/modifiers";
 import { Card, Button, Modal, Input, CardSkeleton, ModelSelectModal, ConfirmModal, CapacityBadges, Select } from "@/shared/components";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
-import { isOpenAICompatibleProvider, isAnthropicCompatibleProvider } from "@/shared/constants/providers";
+import { getComboModelConnectionId, getComboModelValue, setComboModelConnectionId, setComboModelValue } from "@/shared/utils/comboModels";
 
 // Validate combo name: only a-z, A-Z, 0-9, -, _
 const VALID_NAME_REGEX = /^[a-zA-Z0-9_.\-]+$/;
@@ -259,12 +259,14 @@ function ComboCard({ combo, modelCaps = {}, activeProviders = [], copied, onCopy
               {combo.models.length === 0 ? (
                 <span className="text-xs text-text-muted italic">No models</span>
               ) : (
-                combo.models.slice(0, 3).map((model, index) => (
+                combo.models.slice(0, 3).map((entry, index) => {
+                  const model = getComboModelValue(entry);
+                  return (
                   <code key={index} className="inline-flex items-center gap-1 rounded bg-black/5 px-1.5 py-0.5 font-mono text-xs text-text-muted dark:bg-white/5">
                     <span>{model}</span>
                     <CapacityBadges caps={modelCaps[model]} />
                   </code>
-                ))
+                );})
               )}
               {combo.models.length > 3 && (
                 <span className="text-[10px] text-text-muted">+{combo.models.length - 3} more</span>
@@ -280,7 +282,7 @@ function ComboCard({ combo, modelCaps = {}, activeProviders = [], copied, onCopy
                   title="Pick the model that fuses panel answers"
                 >
                   <span className="material-symbols-outlined text-[13px]">gavel</span>
-                  <span className="truncate">{judge || `Auto — ${combo.models[0] || "first model"}`}</span>
+                  <span className="truncate">{judge || `Auto — ${getComboModelValue(combo.models[0]) || "first model"}`}</span>
                 </button>
                 {judge && (
                   <button
@@ -353,7 +355,11 @@ function ComboCard({ combo, modelCaps = {}, activeProviders = [], copied, onCopy
   );
 }
 
-function ModelItem({ id, index, model, isFirst, isLast, onEdit, onMoveUp, onMoveDown, onRemove }) {
+function getProviderPrefix(model) {
+  return typeof model === "string" && model.includes("/") ? model.split("/")[0] : "";
+}
+
+function ModelItem({ id, index, entry, activeProviders, isFirst, isLast, onEdit, onConnectionChange, onMoveUp, onMoveDown, onRemove }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useSortable({ id });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -362,7 +368,15 @@ function ModelItem({ id, index, model, isFirst, isLast, onEdit, onMoveUp, onMove
     zIndex: isDragging ? 999 : undefined,
   };
   const [editing, setEditing] = useState(false);
+  const model = getComboModelValue(entry);
+  const connectionId = getComboModelConnectionId(entry);
   const [draft, setDraft] = useState(model);
+  const providerPrefix = getProviderPrefix(model);
+  const connections = activeProviders.filter((p) => p.provider === providerPrefix || p.providerSpecificData?.prefix === providerPrefix);
+
+  useEffect(() => {
+    if (!editing) setDraft(model);
+  }, [editing, model]);
   const commit = () => {
     const trimmed = draft.trim();
     if (trimmed && trimmed !== model) onEdit(trimmed);
@@ -440,6 +454,22 @@ function ModelItem({ id, index, model, isFirst, isLast, onEdit, onMoveUp, onMove
       </div>
 
       {/* Remove */}
+      {connections.length > 0 && (
+        <select
+          value={connectionId}
+          onChange={(e) => onConnectionChange(e.target.value)}
+          onClick={(e) => e.stopPropagation()}
+          className="max-w-[150px] rounded bg-black/5 px-1.5 py-0.5 text-[11px] text-text-muted outline-none hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10"
+          title="Provider account for this combo model"
+        >
+          <option value="">Auto account</option>
+          {connections.map((connection) => (
+            <option key={connection.id} value={connection.id}>
+              {connection.name || connection.email || connection.id.slice(0, 8)}
+            </option>
+          ))}
+        </select>
+      )}
       <button
         onClick={onRemove}
         className="p-0.5 hover:bg-red-500/10 rounded text-text-muted hover:text-red-500 transition-all"
@@ -515,13 +545,13 @@ function ComboFormModal({ isOpen, combo, onClose, onSave, activeProviders, kindF
   };
 
   const handleAddModel = (model) => {
-    if (!models.includes(model.value)) {
+    if (!models.some((entry) => getComboModelValue(entry) === model.value)) {
       setModels([...models, model.value]);
     }
   };
 
   const handleDeselectModel = (model) => {
-    setModels(models.filter((m) => m !== model.value));
+    setModels(models.filter((entry) => getComboModelValue(entry) !== model.value));
   };
 
   const handleRemoveModel = (index) => {
@@ -591,12 +621,18 @@ function ComboFormModal({ isOpen, combo, onClose, onSave, activeProviders, kindF
                       key={uid}
                       id={uid}
                       index={index}
-                      model={model}
+                      entry={model}
+                      activeProviders={activeProviders}
                       isFirst={index === 0}
                       isLast={index === modelItems.length - 1}
                       onEdit={(newVal) => {
                         const updated = [...models];
-                        updated[index] = newVal;
+                        updated[index] = setComboModelValue(updated[index], newVal);
+                        setModels(updated);
+                      }}
+                      onConnectionChange={(connectionId) => {
+                        const updated = [...models];
+                        updated[index] = setComboModelConnectionId(updated[index], connectionId);
                         setModels(updated);
                       }}
                       onMoveUp={() => handleMoveUp(index)}
@@ -646,7 +682,7 @@ function ComboFormModal({ isOpen, combo, onClose, onSave, activeProviders, kindF
         modelAliases={modelAliases}
         title="Add Model to Combo"
         kindFilter={kindFilter}
-        addedModelValues={models}
+        addedModelValues={models.map(getComboModelValue)}
         closeOnSelect={false}
       />
     </>
