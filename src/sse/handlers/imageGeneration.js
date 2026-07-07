@@ -56,7 +56,7 @@ export async function handleImageGeneration(request) {
     return handleComboChat({
       body,
       models: comboModels,
-      handleSingleModel: (b, m) => handleSingleModelImage(b, m, { wantsStream, binaryOutput, preferredConnectionId }),
+      handleSingleModel: (b, m, modelEntry) => handleSingleModelImage(b, m, { wantsStream, binaryOutput, preferredConnectionId: modelEntry?.connectionId || preferredConnectionId }),
       log,
       comboName: modelStr,
       comboStrategy,

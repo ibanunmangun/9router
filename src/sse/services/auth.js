@@ -104,11 +104,18 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
     const strategy = providerOverride.fallbackStrategy || settings.fallbackStrategy || "fill-first";
 
     let connection;
-    // Pin to preferred connection if specified and available
     if (preferredConnectionId) {
+      const preferredExists = connections.some((c) => c.id === preferredConnectionId);
+      if (!preferredExists) {
+        log.warn("AUTH", `${provider} | pinned account ${preferredConnectionId.slice(0, 8)} unavailable`);
+        return null;
+      }
       connection = availableConnections.find((c) => c.id === preferredConnectionId);
       if (connection) {
         log.info("AUTH", `${provider} | pinned to ${connection.id?.slice(0, 8)} (${connection.name || connection.email || "unnamed"})`);
+      } else {
+        log.warn("AUTH", `${provider} | pinned account ${preferredConnectionId.slice(0, 8)} unavailable`);
+        return null;
       }
     }
     if (connection) {
