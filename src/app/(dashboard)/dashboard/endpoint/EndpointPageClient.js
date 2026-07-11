@@ -1125,7 +1125,7 @@ export default function APIPageClient({ machineId }) {
                     const pct = limitVal ? Math.min(100, Math.round((usedVal / limitVal) * 100)) : 0;
                     const label = isSpend
                       ? `$${Number(usedVal).toFixed(2)} / $${Number(limitVal).toFixed(2)}`
-                      : `${usedVal} / ${limitVal} REQ`;
+                      : `${usedVal} / ${limitVal} req`;
                     const variant = pct >= 100 ? "error" : pct >= 80 ? "warning" : "success";
 
                     return (
@@ -1370,7 +1370,7 @@ export default function APIPageClient({ machineId }) {
                     />
                   </div>
                   <span className="w-12 text-center shrink-0 text-sm font-medium text-text-muted select-none">
-                    {editForm.maxSpendUsdPerDay != null ? "USD" : "REQ"}
+                    {editForm.maxSpendUsdPerDay != null ? "usd" : "req"}
                   </span>
                 </div>
               </div>
@@ -1433,25 +1433,21 @@ export default function APIPageClient({ machineId }) {
                   setUsagePeriod(option.value);
                   fetchUsageStats(viewingUsageKey.id, option.value);
                 }}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${usagePeriod === option.value ? "bg-primary text-white shadow-sm" : "text-text-muted hover:bg-bg-hover hover:text-text"}`}
+                className={`flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${usagePeriod === option.value ? "bg-primary text-white shadow-sm" : "text-text-muted hover:bg-bg-hover hover:text-text"}`}
               >
+                {usageLoading && usagePeriod === option.value && (
+                  <span className="material-symbols-outlined text-[14px] animate-spin">progress_activity</span>
+                )}
                 {option.label}
               </button>
             ))}
           </div>
-          {usageLoading ? (
-            <div className="flex justify-center py-8">
-              <div className="flex items-center gap-2 text-text-muted">
-                <span className="material-symbols-outlined animate-spin">progress_activity</span>
-                <span>Loading usage...</span>
-              </div>
-            </div>
-          ) : usageError ? (
+          {usageError ? (
             <div className="p-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg text-sm">
               {usageError}
             </div>
           ) : usageData ? (
-            <>
+            <div className={`transition-opacity duration-200 ${usageLoading ? "opacity-50 pointer-events-none" : "opacity-100"}`}>
               {/* Summary List */}
               <div className="flex flex-col rounded-lg border border-border bg-surface-2 overflow-hidden">
                 <div className="flex items-center justify-between p-3 border-b border-border/50">
@@ -1525,11 +1521,15 @@ export default function APIPageClient({ machineId }) {
                   </div>
                 )}
               </div>
-            </>
-          ) : null}
-          <div className="mt-2 flex justify-end">
-            <Button onClick={() => setViewingUsageKey(null)}>Close</Button>
-          </div>
+            </div>
+          ) : (
+            <div className="flex justify-center py-8">
+              <div className="flex items-center gap-2 text-text-muted">
+                <span className="material-symbols-outlined animate-spin">progress_activity</span>
+                <span>Loading usage...</span>
+              </div>
+            </div>
+          )}
         </div>
       </Modal>
 
