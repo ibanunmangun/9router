@@ -1334,7 +1334,7 @@ export default function APIPageClient({ machineId }) {
             </div>
             
             {(editForm.maxRequestsPerDay != null || editForm.maxSpendUsdPerDay != null) && (
-              <div className="flex flex-col border-l-2 border-brand-500/20 pl-3 ml-2.5">
+              <div className="flex flex-col pl-3 ml-2.5">
                 <SegmentedControl
                   size="sm"
                   className="w-full bg-surface-2 p-1 rounded-t-lg rounded-b-none border-b border-border/50"
@@ -1352,7 +1352,7 @@ export default function APIPageClient({ machineId }) {
                   }}
                 />
                 <div className="flex items-center gap-0 w-full bg-surface-2 rounded-b-lg p-1.5 focus-within:ring-1 focus-within:ring-brand-500/50 transition-all">
-                  <div className="flex-1 bg-surface rounded-md border border-border-subtle flex items-center overflow-hidden">
+                  <div className="flex-1 min-w-0 bg-surface rounded-md border border-border-subtle flex items-center overflow-hidden relative">
                     <input
                       type="number"
                       step={editForm.maxSpendUsdPerDay != null ? "0.01" : "1"}
@@ -1366,10 +1366,10 @@ export default function APIPageClient({ machineId }) {
                           setEditForm({ ...editForm, maxRequestsPerDay: e.target.value });
                         }
                       }}
-                      className="w-full bg-transparent px-3 py-1.5 text-sm text-text-main outline-none placeholder:text-text-muted"
+                      className="w-full bg-transparent px-3 py-1.5 text-sm text-text-main outline-none placeholder:text-text-muted [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
                     />
                   </div>
-                  <span className="text-sm font-medium text-text-muted px-4 select-none">
+                  <span className="w-12 text-center shrink-0 text-sm font-medium text-text-muted select-none">
                     {editForm.maxSpendUsdPerDay != null ? "USD" : "req"}
                   </span>
                 </div>
