@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import PropTypes from "prop-types";
-import { Card, Button, Input, Modal, CardSkeleton, Toggle, ConfirmModal, MultiSelect } from "@/shared/components";
+import { Card, Button, Input, Modal, CardSkeleton, Toggle, ConfirmModal, ModelSelectModal } from "@/shared/components";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import {
   TUNNEL_BENEFITS,
@@ -78,7 +78,8 @@ export default function APIPageClient({ machineId }) {
 
   const [editingKey, setEditingKey] = useState(null);
   const [editForm, setEditForm] = useState({});
-  const [modelOptions, setModelOptions] = useState([]);
+  const [activeProviders, setActiveProviders] = useState([]);
+  const [showAllowedModelSelect, setShowAllowedModelSelect] = useState(false);
 
   const [viewingUsageKey, setViewingUsageKey] = useState(null);
   const [usageData, setUsageData] = useState(null);
@@ -263,10 +264,17 @@ export default function APIPageClient({ machineId }) {
 
   const fetchData = async () => {
     try {
-      const keysRes = await fetch("/api/keys");
+      const [keysRes, providersRes] = await Promise.all([
+        fetch("/api/keys"),
+        fetch("/api/providers"),
+      ]);
       const keysData = await keysRes.json();
       if (keysRes.ok) {
         setKeys(keysData.keys || []);
+      }
+      const providersData = await providersRes.json();
+      if (providersRes.ok) {
+        setActiveProviders(providersData.connections || []);
       }
     } catch (error) {
       console.log("Error fetching data:", error);
@@ -675,28 +683,6 @@ export default function APIPageClient({ machineId }) {
     }
   };
 
-  const fetchModels = async () => {
-    try {
-      const res = await fetch("/api/models");
-      if (res.ok) {
-        const data = await res.json();
-        const models = data.data || [];
-        const uniqueOptions = new Map();
-
-        models.forEach(model => {
-          const val = model.fullModel || model.id;
-          const label = model.name || val;
-          if (val && !uniqueOptions.has(val)) {
-            uniqueOptions.set(val, { label, value: val });
-          }
-        });
-
-        setModelOptions(Array.from(uniqueOptions.values()));
-      }
-    } catch (error) {
-      console.log("Error fetching models:", error);
-    }
-  };
 
   const handleViewUsage = async (key) => {
     setViewingUsageKey(key);
@@ -727,16 +713,9 @@ export default function APIPageClient({ machineId }) {
             .map((s) => s.trim())
             .filter(Boolean);
 
-      const blockedModelsArray = Array.isArray(editForm.blockedModels)
-        ? editForm.blockedModels
-        : (editForm.blockedModels || "")
-            .split(",")
-            .map((s) => s.trim())
-            .filter(Boolean);
-
       const payload = {
         allowedModels: allowedModelsArray,
-        blockedModels: blockedModelsArray,
+        blockedModels: [], // Explicitly clear any legacy blocked models
         expiresAt: editForm.expiresAt ? new Date(editForm.expiresAt).toISOString() : null,
         maxRequestsPerDay: editForm.maxRequestsPerDay ? Number(editForm.maxRequestsPerDay) : null,
         maxSpendUsdPerDay: editForm.maxSpendUsdPerDay ? Number(editForm.maxSpendUsdPerDay) : null,
@@ -1145,12 +1124,10 @@ export default function APIPageClient({ machineId }) {
                       setEditingKey(key.id);
                       setEditForm({
                         allowedModels: key.allowedModels || [],
-                        blockedModels: key.blockedModels || [],
                         expiresAt: key.expiresAt ? new Date(key.expiresAt).toISOString().split('T')[0] : "",
                         maxRequestsPerDay: key.maxRequestsPerDay || "",
                         maxSpendUsdPerDay: key.maxSpendUsdPerDay || ""
                       });
-                      if (modelOptions.length === 0) fetchModels();
                     }}
                     className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
                   >
@@ -1267,20 +1244,40 @@ export default function APIPageClient({ machineId }) {
         }}
       >
         <div className="flex flex-col gap-4">
-          <MultiSelect
-            label="Allowed Models"
-            options={modelOptions}
-            value={Array.isArray(editForm.allowedModels) ? editForm.allowedModels : []}
-            onChange={(val) => setEditForm({ ...editForm, allowedModels: val })}
-            placeholder="Select or type model patterns"
-          />
-          <MultiSelect
-            label="Blocked Models"
-            options={modelOptions}
-            value={Array.isArray(editForm.blockedModels) ? editForm.blockedModels : []}
-            onChange={(val) => setEditForm({ ...editForm, blockedModels: val })}
-            placeholder="Select or type model patterns"
-          />
+          <div>
+            <label className="mb-1.5 block text-sm font-medium">Allowed Models</label>
+            {(editForm.allowedModels || []).length === 0 ? (
+              <div className="rounded-lg border border-dashed border-black/10 bg-black/[0.01] py-4 text-center dark:border-white/10 dark:bg-white/[0.01]">
+                <span className="material-symbols-outlined mb-1 text-xl text-text-muted">layers</span>
+                <p className="text-xs text-text-muted">All models are allowed</p>
+              </div>
+            ) : (
+              <div className="flex max-h-[350px] min-w-0 flex-col gap-1 overflow-y-auto">
+                {editForm.allowedModels.map((model, index) => (
+                  <div key={model} className="flex min-w-0 items-center gap-1.5 rounded-md bg-black/[0.02] px-2 py-1 dark:bg-white/[0.02]">
+                    <span className="w-3 shrink-0 text-center text-[10px] font-medium text-text-muted">{index + 1}</span>
+                    <code className="min-w-0 flex-1 truncate px-1.5 py-0.5 text-xs text-text-main">{model}</code>
+                    <button
+                      type="button"
+                      onClick={() => setEditForm({ ...editForm, allowedModels: editForm.allowedModels.filter((value) => value !== model) })}
+                      className="rounded p-0.5 text-text-muted transition-colors hover:bg-red-500/10 hover:text-red-500"
+                      title="Remove"
+                    >
+                      <span className="material-symbols-outlined text-[12px]">close</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowAllowedModelSelect(true)}
+              className="mt-2 flex w-full items-center justify-center gap-1 rounded-lg border border-dashed border-black/10 py-2 text-xs font-medium text-primary transition-colors hover:border-primary/50 dark:border-white/10"
+            >
+              <span className="material-symbols-outlined text-[16px]">add</span>
+              Add Model
+            </button>
+          </div>
           <Input
             label="Expiration Date"
             type="date"
@@ -1319,6 +1316,25 @@ export default function APIPageClient({ machineId }) {
           </div>
         </div>
       </Modal>
+
+      <ModelSelectModal
+        isOpen={showAllowedModelSelect}
+        onClose={() => setShowAllowedModelSelect(false)}
+        onSelect={(model) => {
+          const current = editForm.allowedModels || [];
+          if (!current.includes(model.value)) {
+            setEditForm({ ...editForm, allowedModels: [...current, model.value] });
+          }
+        }}
+        onDeselect={(model) => {
+          const current = editForm.allowedModels || [];
+          setEditForm({ ...editForm, allowedModels: current.filter((value) => value !== model.value) });
+        }}
+        activeProviders={activeProviders}
+        title="Add Allowed Model to Policy"
+        addedModelValues={editForm.allowedModels || []}
+        closeOnSelect={false}
+      />
 
       {/* Usage Modal */}
       <Modal
