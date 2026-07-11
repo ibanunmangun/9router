@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import PropTypes from "prop-types";
-import { Card, Button, Input, Modal, CardSkeleton, Toggle, ConfirmModal } from "@/shared/components";
+import { Card, Button, Input, Modal, CardSkeleton, Toggle, ConfirmModal, MultiSelect } from "@/shared/components";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import {
   TUNNEL_BENEFITS,
@@ -78,6 +78,12 @@ export default function APIPageClient({ machineId }) {
 
   const [editingKey, setEditingKey] = useState(null);
   const [editForm, setEditForm] = useState({});
+  const [modelOptions, setModelOptions] = useState([]);
+
+  const [viewingUsageKey, setViewingUsageKey] = useState(null);
+  const [usageData, setUsageData] = useState(null);
+  const [usageLoading, setUsageLoading] = useState(false);
+  const [usageError, setUsageError] = useState(null);
 
   // Client-side local/remote detection (UI hint only, not a security gate)
   const [isRemoteHost, setIsRemoteHost] = useState(false);
@@ -669,16 +675,65 @@ export default function APIPageClient({ machineId }) {
     }
   };
 
+  const fetchModels = async () => {
+    try {
+      const res = await fetch("/api/models");
+      if (res.ok) {
+        const data = await res.json();
+        const models = data.data || [];
+        const uniqueOptions = new Map();
+
+        models.forEach(model => {
+          const val = model.fullModel || model.id;
+          const label = model.name || val;
+          if (val && !uniqueOptions.has(val)) {
+            uniqueOptions.set(val, { label, value: val });
+          }
+        });
+
+        setModelOptions(Array.from(uniqueOptions.values()));
+      }
+    } catch (error) {
+      console.log("Error fetching models:", error);
+    }
+  };
+
+  const handleViewUsage = async (key) => {
+    setViewingUsageKey(key);
+    setUsageLoading(true);
+    setUsageError(null);
+    try {
+      const res = await fetch(`/api/keys/${key.id}/usage`);
+      if (res.ok) {
+        const data = await res.json();
+        setUsageData(data.usage);
+      } else {
+        const data = await res.json();
+        setUsageError(data.error || "Failed to load usage data");
+      }
+    } catch (err) {
+      setUsageError("Failed to fetch usage data");
+    } finally {
+      setUsageLoading(false);
+    }
+  };
+
   const handleUpdateKeyPolicy = async (id) => {
     try {
-      const allowedModelsArray = (editForm.allowedModels || "")
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
-      const blockedModelsArray = (editForm.blockedModels || "")
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
+      const allowedModelsArray = Array.isArray(editForm.allowedModels)
+        ? editForm.allowedModels
+        : (editForm.allowedModels || "")
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean);
+
+      const blockedModelsArray = Array.isArray(editForm.blockedModels)
+        ? editForm.blockedModels
+        : (editForm.blockedModels || "")
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean);
+
       const payload = {
         allowedModels: allowedModelsArray,
         blockedModels: blockedModelsArray,
@@ -1076,16 +1131,26 @@ export default function APIPageClient({ machineId }) {
                   <Button
                     size="sm"
                     variant="ghost"
+                    icon="bar_chart"
+                    onClick={() => handleViewUsage(key)}
+                    className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
+                  >
+                    View Usage
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
                     icon="settings"
                     onClick={() => {
                       setEditingKey(key.id);
                       setEditForm({
-                        allowedModels: (key.allowedModels || []).join(", "),
-                        blockedModels: (key.blockedModels || []).join(", "),
+                        allowedModels: key.allowedModels || [],
+                        blockedModels: key.blockedModels || [],
                         expiresAt: key.expiresAt ? new Date(key.expiresAt).toISOString().split('T')[0] : "",
                         maxRequestsPerDay: key.maxRequestsPerDay || "",
                         maxSpendUsdPerDay: key.maxSpendUsdPerDay || ""
                       });
+                      if (modelOptions.length === 0) fetchModels();
                     }}
                     className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
                   >
@@ -1202,17 +1267,19 @@ export default function APIPageClient({ machineId }) {
         }}
       >
         <div className="flex flex-col gap-4">
-          <Input
-            label="Allowed Models (comma separated)"
-            value={editForm.allowedModels || ""}
-            onChange={(e) => setEditForm({ ...editForm, allowedModels: e.target.value })}
-            placeholder="e.g. claude-3-opus, gpt-4"
+          <MultiSelect
+            label="Allowed Models"
+            options={modelOptions}
+            value={Array.isArray(editForm.allowedModels) ? editForm.allowedModels : []}
+            onChange={(val) => setEditForm({ ...editForm, allowedModels: val })}
+            placeholder="Select or type model patterns"
           />
-          <Input
-            label="Blocked Models (comma separated)"
-            value={editForm.blockedModels || ""}
-            onChange={(e) => setEditForm({ ...editForm, blockedModels: e.target.value })}
-            placeholder="e.g. text-davinci-003"
+          <MultiSelect
+            label="Blocked Models"
+            options={modelOptions}
+            value={Array.isArray(editForm.blockedModels) ? editForm.blockedModels : []}
+            onChange={(val) => setEditForm({ ...editForm, blockedModels: val })}
+            placeholder="Select or type model patterns"
           />
           <Input
             label="Expiration Date"
@@ -1249,6 +1316,110 @@ export default function APIPageClient({ machineId }) {
             >
               Cancel
             </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Usage Modal */}
+      <Modal
+        isOpen={!!viewingUsageKey}
+        title={viewingUsageKey ? `Usage: ${viewingUsageKey.name}` : "Usage"}
+        onClose={() => {
+          setViewingUsageKey(null);
+          setUsageData(null);
+        }}
+      >
+        <div className="flex flex-col gap-4">
+          {usageLoading ? (
+            <div className="flex justify-center py-8">
+              <div className="flex items-center gap-2 text-text-muted">
+                <span className="material-symbols-outlined animate-spin">progress_activity</span>
+                <span>Loading usage...</span>
+              </div>
+            </div>
+          ) : usageError ? (
+            <div className="p-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg text-sm">
+              {usageError}
+            </div>
+          ) : usageData ? (
+            <>
+              {/* Summary Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="bg-surface-2 p-3 rounded-lg border border-border">
+                  <p className="text-xs text-text-muted mb-1">Total Requests</p>
+                  <p className="text-lg font-semibold">{usageData.totalRequests?.toLocaleString() || 0}</p>
+                </div>
+                <div className="bg-surface-2 p-3 rounded-lg border border-border">
+                  <p className="text-xs text-text-muted mb-1">Total Cost (USD)</p>
+                  <p className="text-lg font-semibold">
+                    ${Number(usageData.totalCost || 0).toFixed(4)}
+                  </p>
+                </div>
+                <div className="bg-surface-2 p-3 rounded-lg border border-border">
+                  <p className="text-xs text-text-muted mb-1">Prompt Tokens</p>
+                  <p className="text-lg font-semibold">{usageData.totalPromptTokens?.toLocaleString() || 0}</p>
+                </div>
+                <div className="bg-surface-2 p-3 rounded-lg border border-border">
+                  <p className="text-xs text-text-muted mb-1">Completion Tokens</p>
+                  <p className="text-lg font-semibold">{usageData.totalCompletionTokens?.toLocaleString() || 0}</p>
+                </div>
+              </div>
+
+              {/* Recent Requests Table */}
+              <div className="mt-4">
+                <h3 className="text-sm font-semibold mb-3">Recent Requests (30d)</h3>
+                {!usageData.recentRequests || usageData.recentRequests.length === 0 ? (
+                  <div className="text-center py-6 text-sm text-text-muted border border-dashed border-border rounded-lg">
+                    No requests found for this key in the last 30 days
+                  </div>
+                ) : (
+                  <div className="border border-border rounded-lg overflow-hidden bg-surface-1">
+                    <div className="max-h-[300px] overflow-y-auto">
+                      <table className="w-full text-left text-sm">
+                        <thead className="bg-surface-2 sticky top-0 border-b border-border text-xs text-text-muted uppercase">
+                          <tr>
+                            <th className="px-3 py-2 font-medium">Time</th>
+                            <th className="px-3 py-2 font-medium">Model</th>
+                            <th className="px-3 py-2 font-medium">Tokens (In/Out)</th>
+                            <th className="px-3 py-2 font-medium text-right">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                          {usageData.recentRequests.map((req, i) => (
+                            <tr key={req.id || i} className="hover:bg-surface-2/50">
+                              <td className="px-3 py-2 whitespace-nowrap text-xs text-text-muted">
+                                {new Date(req.createdAt).toLocaleString()}
+                              </td>
+                              <td className="px-3 py-2">
+                                <div className="font-medium text-xs">{req.model}</div>
+                                {req.provider && (
+                                  <div className="text-[10px] text-text-muted">{req.provider}</div>
+                                )}
+                              </td>
+                              <td className="px-3 py-2 text-xs">
+                                {req.promptTokens?.toLocaleString() || 0} / {req.completionTokens?.toLocaleString() || 0}
+                              </td>
+                              <td className="px-3 py-2 text-right">
+                                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                  req.status >= 200 && req.status < 300
+                                    ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                                    : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+                                }`}>
+                                  {req.status}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : null}
+          <div className="mt-2 flex justify-end">
+            <Button onClick={() => setViewingUsageKey(null)}>Close</Button>
           </div>
         </div>
       </Modal>
