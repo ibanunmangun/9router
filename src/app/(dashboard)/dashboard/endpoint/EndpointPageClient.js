@@ -1080,7 +1080,7 @@ export default function APIPageClient({ machineId }) {
                   <p className="text-sm font-medium flex items-center gap-2">
                     {key.name}
                     {Array.isArray(key.allowedModels) && key.allowedModels.length > 0 && (
-                      <Badge variant="warning" size="sm" className="font-mono text-[10px]">Restricted</Badge>
+                      <Badge variant="warning" size="sm">Restricted</Badge>
                     )}
                     {(() => {
                       const hasLimit = key.maxRequestsPerDay != null || key.maxSpendUsdPerDay != null;
@@ -1161,24 +1161,14 @@ export default function APIPageClient({ machineId }) {
                     >
                       Configure
                     </Button>
-                    {(() => {
-                      const hasLimit = key.maxRequestsPerDay != null || key.maxSpendUsdPerDay != null;
-                      if (!hasLimit && (key.dailyRequests > 0 || key.dailySpendUsd > 0)) {
-                        return (
-                          <div className="flex flex-col items-end px-1 opacity-100 sm:opacity-85 transition-all text-right leading-none">
-                            <span className="text-xs font-semibold tabular-nums text-text-main">
-                              {key.dailyRequests || 0} req
-                            </span>
-                            {key.dailySpendUsd ? (
-                              <span className="text-[10px] text-text-muted tabular-nums mt-0.5">
-                                ~${Number(key.dailySpendUsd).toFixed(4)}
-                              </span>
-                            ) : null}
-                          </div>
-                        );
-                      }
-                      return null;
-                    })()}
+                    <div className="flex flex-col items-end px-1 opacity-100 sm:opacity-85 transition-all text-right leading-none shrink-0">
+                      <span className="text-xs font-semibold tabular-nums text-text-main">
+                        {key.dailyRequests || 0} req
+                      </span>
+                      <span className="text-[10px] text-text-muted tabular-nums mt-0.5">
+                        ~${Number(key.dailySpendUsd || 0).toFixed(4)}
+                      </span>
+                    </div>
                     <Toggle
                       size="sm"
                       checked={key.isActive ?? true}

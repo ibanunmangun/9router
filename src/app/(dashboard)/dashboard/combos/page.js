@@ -396,14 +396,14 @@ function ModelItem({ id, index, entry, activeProviders, isFirst, isLast, onEdit,
     <div
       ref={setNodeRef}
       style={style}
-      className={`group grid grid-cols-[auto_auto_1fr_auto_auto] items-start gap-x-2 gap-y-1 rounded-md px-2 py-1.5 bg-black/[0.02] hover:bg-black/[0.04] dark:bg-white/[0.02] dark:hover:bg-white/[0.04] transition-colors ${isDragging ? "shadow-md ring-1 ring-primary/30" : ""}`}
+      className={`group grid grid-cols-[auto_auto_1fr_auto_auto] gap-x-2 gap-y-0.5 rounded-md px-2 py-1 bg-black/[0.02] hover:bg-black/[0.04] dark:bg-white/[0.02] dark:hover:bg-white/[0.04] transition-colors ${isDragging ? "shadow-md ring-1 ring-primary/30" : ""}`}
     >
-      {/* Col 1: Drag handle */}
+      {/* Col 1: Drag handle — spans both rows */}
       <button
         {...attributes}
         {...listeners}
         type="button"
-        className="cursor-grab touch-none p-0.5 rounded text-text-muted hover:text-primary active:cursor-grabbing shrink-0 mt-0.5"
+        className="row-span-2 self-center cursor-grab touch-none p-0.5 rounded text-text-muted hover:text-primary active:cursor-grabbing shrink-0"
         title="Drag to reorder"
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
@@ -413,10 +413,10 @@ function ModelItem({ id, index, entry, activeProviders, isFirst, isLast, onEdit,
         </svg>
       </button>
 
-      {/* Col 2: Index badge */}
-      <span className="text-[10px] font-medium text-text-muted w-3 text-center shrink-0 mt-1">{index + 1}</span>
+      {/* Col 2: Index badge — spans both rows */}
+      <span className="row-span-2 self-center text-[10px] font-medium text-text-muted w-3 text-center shrink-0">{index + 1}</span>
 
-      {/* Col 3: Inline editable model value */}
+      {/* Col 3, Row 1: Inline editable model value */}
       <div className="min-w-0">
         {editing ? (
           <input
@@ -438,8 +438,8 @@ function ModelItem({ id, index, entry, activeProviders, isFirst, isLast, onEdit,
         )}
       </div>
 
-      {/* Col 4: Priority arrows */}
-      <div className="flex shrink-0 items-center gap-0.5 mt-0.5">
+      {/* Col 4: Priority arrows — spans both rows */}
+      <div className="row-span-2 self-center flex shrink-0 items-center gap-0.5">
         <button
           onClick={onMoveUp}
           disabled={isFirst}
@@ -458,18 +458,16 @@ function ModelItem({ id, index, entry, activeProviders, isFirst, isLast, onEdit,
         </button>
       </div>
 
-      {/* Col 5: Remove button */}
+      {/* Col 5: Remove button — spans both rows */}
       <button
         onClick={onRemove}
-        className="p-0.5 hover:bg-red-500/10 rounded text-text-muted hover:text-red-500 transition-all mt-0.5"
+        className="row-span-2 self-center p-0.5 hover:bg-red-500/10 rounded text-text-muted hover:text-red-500 transition-all"
         title="Remove"
       >
         <span className="material-symbols-outlined text-[12px]">close</span>
       </button>
 
-      {/* Row 2: Account selector (spans columns 1 and 2 by offset, placed in column 3) */}
-      <div />
-      <div />
+      {/* Col 3, Row 2: Account selector */}
       <div className="min-w-0 pr-2">
         {connections.length > 0 ? (
           <select
@@ -492,8 +490,6 @@ function ModelItem({ id, index, entry, activeProviders, isFirst, isLast, onEdit,
           </span>
         )}
       </div>
-      <div />
-      <div />
     </div>
   );
 }
