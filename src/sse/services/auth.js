@@ -1,8 +1,9 @@
-import { getProviderConnections, validateApiKey, updateProviderConnection, getSettings, getProxyPools } from "@/lib/localDb";
+import { getProviderConnections, validateApiKey, updateProviderConnection, getSettings, getProxyPools, getApiKeyMetadata, touchApiKey } from "@/lib/localDb";
 import { resolveConnectionProxyConfig, pickProxyPoolId } from "@/lib/network/connectionProxy";
 import { formatRetryAfter, checkFallbackError, isModelLockActive, buildModelLockUpdate, getEarliestModelLockUntil } from "open-sse/services/accountFallback.js";
 import { MAX_RATE_LIMIT_COOLDOWN_MS } from "open-sse/config/errorConfig.js";
 import { resolveProviderId, FREE_PROVIDERS } from "@/shared/constants/providers.js";
+import { modelPatternMatches } from "@/shared/utils/modelPermissions.js";
 import * as log from "../utils/logger.js";
 
 // Mutex to prevent race conditions during account selection
@@ -115,6 +116,9 @@ export async function getProviderCredentials(provider, excludeConnectionIds = nu
       connection = availableConnections.find((c) => c.id === preferredConnectionId);
       if (connection) {
         log.info("AUTH", `${provider} | pinned to ${connection.id?.slice(0, 8)} (${connection.name || connection.email || "unnamed"})`);
+      } else {
+        log.warn("AUTH", `${provider} | pinned connection ${preferredConnectionId?.slice(0, 8)} is unavailable or inactive. Bypassing fallback.`);
+        return null;
       }
     }
     if (connection) {
@@ -316,4 +320,82 @@ export function extractApiKey(request) {
 export async function isValidApiKey(apiKey) {
   if (!apiKey) return false;
   return await validateApiKey(apiKey);
+}
+
+/**
+ * Check if a model is allowed under a key's configured model scopes.
+ *
+ * Logic:
+ *   1. No key metadata → allow
+ *   2. allowedModels empty ([]) → allow (backward compat)
+ *   3. Pattern match every entry in allowedModels
+ *
+ * @param {string} apiKey - The API key string
+ * @param {string} modelId - The model ID to check
+ * @returns {Promise<boolean>}
+ */
+export async function isModelAllowedForKey(apiKey, modelId) {
+  if (!apiKey || !modelId) return true;
+
+  const metadata = await getApiKeyMetadata(apiKey);
+  if (!metadata) return true;
+  if (!metadata.allowedModels || metadata.allowedModels.length === 0) return true;
+  return metadata.allowedModels.some((p) => modelPatternMatches(p, [modelId]));
+}
+
+/**
+ * Check a key's daily request-count/spend limits against today's recorded usage.
+ * Cost is only known after a request completes, so this checks already-recorded
+ * usage against the cap — the request that crosses the cap still succeeds, the
+ * next one is blocked. Runs regardless of the requireApiKey setting.
+ *
+ * @param {string} apiKey
+ * @returns {Promise<{allowed: boolean, reason?: string}>}
+ */
+export async function checkDailyLimit(apiKey) {
+  if (!apiKey) return { allowed: true };
+
+  const { getDailyUsageForApiKey } = await import("@/lib/db/repos/usageRepo");
+  const metadata = await getApiKeyMetadata(apiKey);
+  if (!metadata) return { allowed: true };
+  if (metadata.maxRequestsPerDay == null && metadata.maxSpendUsdPerDay == null) return { allowed: true };
+
+  const usage = await getDailyUsageForApiKey(apiKey);
+
+  if (metadata.maxRequestsPerDay != null && usage.requests >= metadata.maxRequestsPerDay) {
+    return { allowed: false, reason: `Daily request limit reached (${usage.requests}/${metadata.maxRequestsPerDay})` };
+  }
+  if (metadata.maxSpendUsdPerDay != null && usage.cost >= metadata.maxSpendUsdPerDay) {
+    return { allowed: false, reason: `Daily spend limit reached ($${usage.cost.toFixed(4)}/$${metadata.maxSpendUsdPerDay})` };
+  }
+  return { allowed: true };
+}
+
+/**
+ * Check if the key has expired based on expiresAt timestamp.
+ *
+ * @param {string} apiKey
+ * @returns {Promise<boolean>}
+ */
+export async function isKeyExpired(apiKey) {
+  if (!apiKey) return false;
+  const metadata = await getApiKeyMetadata(apiKey);
+  if (!metadata || !metadata.expiresAt) return false;
+  return new Date(metadata.expiresAt) < new Date();
+}
+
+export async function getApiKeyPolicyError(apiKey, modelId) {
+  if (!apiKey) return null;
+  if (await isKeyExpired(apiKey)) {
+    return { status: 401, message: "API key has expired" };
+  }
+  if (!(await isModelAllowedForKey(apiKey, modelId))) {
+    return { status: 403, message: `API key lacks permission for model: ${modelId}` };
+  }
+  const limitCheck = await checkDailyLimit(apiKey);
+  if (!limitCheck.allowed) {
+    return { status: 429, message: limitCheck.reason };
+  }
+  touchApiKey(apiKey).catch((err) => log.warn("AUTH", `Failed to touch api key: ${err.message}`));
+  return null;
 }
