@@ -1334,10 +1334,10 @@ export default function APIPageClient({ machineId }) {
             </div>
             
             {(editForm.maxRequestsPerDay != null || editForm.maxSpendUsdPerDay != null) && (
-              <div className="flex flex-col gap-3 pl-1 border-l-2 border-primary/20">
+              <div className="flex flex-col border-l-2 border-brand-500/20 pl-3 ml-2.5">
                 <SegmentedControl
                   size="sm"
-                  className="w-full"
+                  className="w-full bg-surface-2 p-1 rounded-t-lg rounded-b-none border-b border-border/50"
                   options={[
                     { value: "requests", label: "Max Requests", icon: "tag" },
                     { value: "spend", label: "Max Spend", icon: "attach_money" },
@@ -1351,26 +1351,25 @@ export default function APIPageClient({ machineId }) {
                     }
                   }}
                 />
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-text-main w-8 text-center">
-                    {editForm.maxSpendUsdPerDay != null ? "$" : ""}
-                  </span>
-                  <input
-                    type="number"
-                    step={editForm.maxSpendUsdPerDay != null ? "0.01" : "1"}
-                    min="0"
-                    placeholder={editForm.maxSpendUsdPerDay != null ? "Amount in USD" : "Number of requests"}
-                    value={editForm.maxSpendUsdPerDay != null ? editForm.maxSpendUsdPerDay : editForm.maxRequestsPerDay}
-                    onChange={(e) => {
-                      if (editForm.maxSpendUsdPerDay != null) {
-                        setEditForm({ ...editForm, maxSpendUsdPerDay: e.target.value });
-                      } else {
-                        setEditForm({ ...editForm, maxRequestsPerDay: e.target.value });
-                      }
-                    }}
-                    className="flex-1 rounded-[10px] border border-border bg-surface-2 px-3 py-1.5 text-sm text-text-main outline-none focus:ring-2 focus:ring-brand-500/30"
-                  />
-                  <span className="text-sm font-medium text-text-main w-12">
+                <div className="flex items-center gap-0 w-full bg-surface-2 rounded-b-lg p-1.5 focus-within:ring-1 focus-within:ring-brand-500/50 transition-all">
+                  <div className="flex-1 bg-surface rounded-md border border-border-subtle flex items-center overflow-hidden">
+                    <input
+                      type="number"
+                      step={editForm.maxSpendUsdPerDay != null ? "0.01" : "1"}
+                      min="0"
+                      placeholder={editForm.maxSpendUsdPerDay != null ? "Amount in USD" : "Number of requests"}
+                      value={editForm.maxSpendUsdPerDay != null ? editForm.maxSpendUsdPerDay : editForm.maxRequestsPerDay}
+                      onChange={(e) => {
+                        if (editForm.maxSpendUsdPerDay != null) {
+                          setEditForm({ ...editForm, maxSpendUsdPerDay: e.target.value });
+                        } else {
+                          setEditForm({ ...editForm, maxRequestsPerDay: e.target.value });
+                        }
+                      }}
+                      className="w-full bg-transparent px-3 py-1.5 text-sm text-text-main outline-none placeholder:text-text-muted"
+                    />
+                  </div>
+                  <span className="text-sm font-medium text-text-muted px-4 select-none">
                     {editForm.maxSpendUsdPerDay != null ? "USD" : "req"}
                   </span>
                 </div>
