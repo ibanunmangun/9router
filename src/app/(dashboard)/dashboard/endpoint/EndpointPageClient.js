@@ -1106,47 +1106,49 @@ export default function APIPageClient({ machineId }) {
                   {key.isActive === false && (
                     <p className="text-xs text-orange-500 mt-1">Paused</p>
                   )}
+                  {(() => {
+                    const hasLimit = key.maxRequestsPerDay != null || key.maxSpendUsdPerDay != null;
+                    if (hasLimit) {
+                      const isSpend = key.maxSpendUsdPerDay != null;
+                      const limitVal = isSpend ? key.maxSpendUsdPerDay : key.maxRequestsPerDay;
+                      const usedVal = isSpend ? (key.dailySpendUsd || 0) : (key.dailyRequests || 0);
+                      const pct = limitVal ? Math.min(100, Math.round((usedVal / limitVal) * 100)) : 0;
+                      const label = isSpend
+                        ? `$${Number(usedVal).toFixed(2)} / $${Number(limitVal).toFixed(2)}`
+                        : `${usedVal} / ${limitVal} req`;
+                      const variant = pct >= 100 ? "error" : pct >= 80 ? "warning" : "success";
+
+                      return (
+                        <div className="mt-1.5 flex items-center gap-1.5">
+                          <Badge variant={variant} size="sm">
+                            {label}
+                          </Badge>
+                          <span className="text-[10px] text-text-muted">daily limit</span>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
 
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 mt-3 sm:mt-0">
-                  {/* Daily usage/limit on the right */}
                   {(() => {
                     const hasLimit = key.maxRequestsPerDay != null || key.maxSpendUsdPerDay != null;
-                    if (!hasLimit) {
-                      if (key.dailyRequests > 0 || key.dailySpendUsd > 0) {
-                        return (
-                          <div className="flex flex-col sm:items-end opacity-100 sm:opacity-80 sm:group-hover:opacity-100 transition-all">
-                            <p className="text-xs font-semibold tabular-nums text-text-main">
-                              {key.dailyRequests || 0} req
+                    if (!hasLimit && (key.dailyRequests > 0 || key.dailySpendUsd > 0)) {
+                      return (
+                        <div className="flex flex-col sm:items-end opacity-100 sm:opacity-80 sm:group-hover:opacity-100 transition-all">
+                          <p className="text-xs font-semibold tabular-nums text-text-main">
+                            {key.dailyRequests || 0} req
+                          </p>
+                          {key.dailySpendUsd ? (
+                            <p className="text-[10px] text-text-muted tabular-nums">
+                              ~${Number(key.dailySpendUsd).toFixed(4)}
                             </p>
-                            {key.dailySpendUsd ? (
-                              <p className="text-[10px] text-text-muted tabular-nums">
-                                ~${Number(key.dailySpendUsd).toFixed(4)}
-                              </p>
-                            ) : null}
-                          </div>
-                        );
-                      }
-                      return null;
+                          ) : null}
+                        </div>
+                      );
                     }
-
-                    const isSpend = key.maxSpendUsdPerDay != null;
-                    const limitVal = isSpend ? key.maxSpendUsdPerDay : key.maxRequestsPerDay;
-                    const usedVal = isSpend ? (key.dailySpendUsd || 0) : (key.dailyRequests || 0);
-                    const pct = limitVal ? Math.min(100, Math.round((usedVal / limitVal) * 100)) : 0;
-                    const label = isSpend
-                      ? `$${Number(usedVal).toFixed(2)} / $${Number(limitVal).toFixed(2)}`
-                      : `${usedVal} / ${limitVal} req`;
-                    const variant = pct >= 100 ? "error" : pct >= 80 ? "warning" : "success";
-
-                    return (
-                      <div className="flex flex-col sm:items-end opacity-100 sm:opacity-80 sm:group-hover:opacity-100 transition-all">
-                        <Badge variant={variant} size="sm">
-                          {label}
-                        </Badge>
-                        <span className="text-[10px] text-text-muted mt-0.5">daily limit</span>
-                      </div>
-                    );
+                    return null;
                   })()}
 
                   <div className="flex items-center gap-2">
