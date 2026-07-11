@@ -456,7 +456,7 @@ export async function getUsageStats(period = "all", apiKey = null) {
   const useDailySummary = period !== "24h" && period !== "today";
 
   if (useDailySummary) {
-    const periodDays = { "7d": 7, "30d": 30, "60d": 60 };
+    const periodDays = { "1d": 1, "7d": 7, "30d": 30, "60d": 60 };
     const maxDays = periodDays[period] || null;
     const dayRows = loadDaysInRange(db, maxDays);
 

@@ -11,9 +11,9 @@ export async function GET(request, { params }) {
     }
 
     const { searchParams } = new URL(request.url);
-    const periodParam = searchParams.get("period") || "today";
-    const allowedPeriods = ["today", "7d", "30d"];
-    const period = allowedPeriods.includes(periodParam) ? periodParam : "today";
+    const periodParam = searchParams.get("period") || "7d";
+    const allowedPeriods = ["today", "1d", "7d", "30d", "all"];
+    const period = allowedPeriods.includes(periodParam) ? periodParam : "7d";
 
     const stats = await getUsageStats(period, apiKey.key);
     return NextResponse.json({ usage: stats });
