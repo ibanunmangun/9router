@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import PropTypes from "prop-types";
-import { Card, Button, Input, Modal, CardSkeleton, Toggle, ConfirmModal, ModelSelectModal, Badge } from "@/shared/components";
+import { Card, Button, Input, Modal, CardSkeleton, Toggle, ConfirmModal, ModelSelectModal, Badge, SegmentedControl } from "@/shared/components";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import {
   TUNNEL_BENEFITS,
@@ -1316,44 +1316,66 @@ export default function APIPageClient({ machineId }) {
             value={editForm.expiresAt || ""}
             onChange={(e) => setEditForm({ ...editForm, expiresAt: e.target.value })}
           />
-          <div className="flex flex-col gap-1.5 mt-2">
-            <label className="text-sm font-medium text-text-main">Daily Limit</label>
-            <div className="flex gap-2">
-              <select
-                className="w-1/3 py-2.5 px-3 text-sm text-text-main bg-surface-2 rounded-[10px] border border-transparent focus:outline-none focus:ring-2 focus:ring-brand-500/30"
-                value={editForm.maxSpendUsdPerDay != null ? "spend" : (editForm.maxRequestsPerDay != null ? "requests" : "none")}
-                onChange={(e) => {
-                  const mode = e.target.value;
-                  if (mode === "none") {
-                    setEditForm({ ...editForm, maxRequestsPerDay: null, maxSpendUsdPerDay: null });
-                  } else if (mode === "requests") {
+          <div className="flex flex-col gap-3 mt-4">
+            <div className="flex items-start justify-between gap-3">
+              <Toggle
+                size="sm"
+                label="Daily Limits"
+                description="Cap this key to a max requests or max spend per day"
+                checked={editForm.maxRequestsPerDay != null || editForm.maxSpendUsdPerDay != null}
+                onChange={(enabled) => {
+                  if (enabled) {
                     setEditForm({ ...editForm, maxRequestsPerDay: "", maxSpendUsdPerDay: null });
-                  } else if (mode === "spend") {
-                    setEditForm({ ...editForm, maxRequestsPerDay: null, maxSpendUsdPerDay: "" });
+                  } else {
+                    setEditForm({ ...editForm, maxRequestsPerDay: null, maxSpendUsdPerDay: null });
                   }
                 }}
-              >
-                <option value="none">No limit</option>
-                <option value="requests">Max requests</option>
-                <option value="spend">Max USD spend</option>
-              </select>
-              {(editForm.maxRequestsPerDay != null || editForm.maxSpendUsdPerDay != null) && (
-                <input
-                  type="number"
-                  step={editForm.maxSpendUsdPerDay != null ? "0.01" : "1"}
-                  placeholder={editForm.maxSpendUsdPerDay != null ? "Amount in USD" : "Number of requests"}
-                  value={editForm.maxSpendUsdPerDay != null ? editForm.maxSpendUsdPerDay : editForm.maxRequestsPerDay}
-                  onChange={(e) => {
-                    if (editForm.maxSpendUsdPerDay != null) {
-                      setEditForm({ ...editForm, maxSpendUsdPerDay: e.target.value });
+              />
+            </div>
+            
+            {(editForm.maxRequestsPerDay != null || editForm.maxSpendUsdPerDay != null) && (
+              <div className="flex flex-col gap-3 pl-1 border-l-2 border-primary/20">
+                <SegmentedControl
+                  size="sm"
+                  className="w-full"
+                  options={[
+                    { value: "requests", label: "Max Requests", icon: "tag" },
+                    { value: "spend", label: "Max Spend", icon: "attach_money" },
+                  ]}
+                  value={editForm.maxSpendUsdPerDay != null ? "spend" : "requests"}
+                  onChange={(mode) => {
+                    if (mode === "spend") {
+                      setEditForm({ ...editForm, maxSpendUsdPerDay: "", maxRequestsPerDay: null });
                     } else {
-                      setEditForm({ ...editForm, maxRequestsPerDay: e.target.value });
+                      setEditForm({ ...editForm, maxRequestsPerDay: "", maxSpendUsdPerDay: null });
                     }
                   }}
-                  className="w-2/3 py-2.5 px-3 text-sm text-text-main bg-surface-2 rounded-[10px] border border-transparent focus:outline-none focus:ring-2 focus:ring-brand-500/30"
                 />
-              )}
-            </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-text-main w-8 text-center">
+                    {editForm.maxSpendUsdPerDay != null ? "$" : ""}
+                  </span>
+                  <input
+                    type="number"
+                    step={editForm.maxSpendUsdPerDay != null ? "0.01" : "1"}
+                    min="0"
+                    placeholder={editForm.maxSpendUsdPerDay != null ? "Amount in USD" : "Number of requests"}
+                    value={editForm.maxSpendUsdPerDay != null ? editForm.maxSpendUsdPerDay : editForm.maxRequestsPerDay}
+                    onChange={(e) => {
+                      if (editForm.maxSpendUsdPerDay != null) {
+                        setEditForm({ ...editForm, maxSpendUsdPerDay: e.target.value });
+                      } else {
+                        setEditForm({ ...editForm, maxRequestsPerDay: e.target.value });
+                      }
+                    }}
+                    className="flex-1 rounded-[10px] border border-border bg-surface-2 px-3 py-1.5 text-sm text-text-main outline-none focus:ring-2 focus:ring-brand-500/30"
+                  />
+                  <span className="text-sm font-medium text-text-main w-12">
+                    {editForm.maxSpendUsdPerDay != null ? "USD" : "req"}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
           <div className="flex gap-2 mt-4">
             <Button onClick={() => handleUpdateKeyPolicy(editingKey)} fullWidth>
