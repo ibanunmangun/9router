@@ -456,13 +456,13 @@ function ModelItem({ id, index, entry, activeProviders, isFirst, isLast, onEdit,
         </button>
       </div>
 
-      {/* Remove */}
-      {connections.length > 0 && (
+      {/* Account selector — always rendered to keep alignment */}
+      {connections.length > 0 ? (
         <select
           value={connectionId}
           onChange={(e) => onConnectionChange(e.target.value)}
           onClick={(e) => e.stopPropagation()}
-          className="max-w-[150px] rounded bg-black/5 px-1.5 py-0.5 text-[11px] text-text-muted outline-none hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10"
+          className="w-[120px] rounded bg-black/5 px-1.5 py-0.5 text-[11px] text-text-muted outline-none hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10"
           title="Provider account for this combo model"
         >
           <option value="">Auto account</option>
@@ -472,6 +472,10 @@ function ModelItem({ id, index, entry, activeProviders, isFirst, isLast, onEdit,
             </option>
           ))}
         </select>
+      ) : (
+        <span className="w-[120px] text-center text-[11px] text-text-muted/50 select-none" title="No accounts configured for this provider">
+          Auto account
+        </span>
       )}
       <button
         onClick={onRemove}
