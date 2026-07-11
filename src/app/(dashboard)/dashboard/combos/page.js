@@ -425,11 +425,11 @@ function ModelItem({ id, index, entry, activeProviders, isFirst, isLast, onEdit,
             onChange={(e) => setDraft(e.target.value)}
             onBlur={commit}
             onKeyDown={handleKeyDown}
-            className="w-full rounded border border-primary/40 bg-white px-1.5 py-0.5 font-mono text-xs text-text-main outline-none dark:bg-black/20"
+            className="w-full rounded border border-primary/40 bg-white px-1.5 py-0.5 font-mono text-[11px] text-text-main outline-none dark:bg-black/20"
           />
         ) : (
           <div
-            className="w-full cursor-text truncate rounded px-1.5 py-0.5 font-mono text-xs text-text-main hover:bg-black/5 dark:hover:bg-white/5"
+            className="w-full cursor-text truncate rounded px-1.5 py-0.5 font-mono text-[11px] text-text-main hover:bg-black/5 dark:hover:bg-white/5"
             onClick={() => setEditing(true)}
             title="Click to edit"
           >
