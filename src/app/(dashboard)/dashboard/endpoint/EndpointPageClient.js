@@ -1077,7 +1077,32 @@ export default function APIPageClient({ machineId }) {
                 className={`group flex items-center justify-between py-3 border-b border-black/[0.03] dark:border-white/[0.03] last:border-b-0 ${key.isActive === false ? "opacity-60" : ""}`}
               >
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">{key.name}</p>
+                  <p className="text-sm font-medium flex items-center gap-2">
+                    {key.name}
+                    {Array.isArray(key.allowedModels) && key.allowedModels.length > 0 && (
+                      <Badge variant="warning" size="sm" className="font-mono text-[10px]">Restricted</Badge>
+                    )}
+                    {(() => {
+                      const hasLimit = key.maxRequestsPerDay != null || key.maxSpendUsdPerDay != null;
+                      if (hasLimit) {
+                        const isSpend = key.maxSpendUsdPerDay != null;
+                        const limitVal = isSpend ? key.maxSpendUsdPerDay : key.maxRequestsPerDay;
+                        const usedVal = isSpend ? (key.dailySpendUsd || 0) : (key.dailyRequests || 0);
+                        const pct = limitVal ? Math.min(100, Math.round((usedVal / limitVal) * 100)) : 0;
+                        const label = isSpend
+                          ? `$${Number(usedVal).toFixed(2)} / $${Number(limitVal).toFixed(2)}`
+                          : `${usedVal} / ${limitVal} req`;
+                        const variant = pct >= 100 ? "error" : pct >= 80 ? "warning" : "success";
+
+                        return (
+                          <Badge variant={variant} size="sm">
+                            {label} limit
+                          </Badge>
+                        );
+                      }
+                      return null;
+                    })()}
+                  </p>
                   <div className="flex items-center gap-2 mt-1">
                     <code className="text-xs text-text-muted font-mono">
                       {visibleKeys.has(key.id) ? key.key : maskKey(key.key)}
@@ -1106,51 +1131,9 @@ export default function APIPageClient({ machineId }) {
                   {key.isActive === false && (
                     <p className="text-xs text-orange-500 mt-1">Paused</p>
                   )}
-                  {(() => {
-                    const hasLimit = key.maxRequestsPerDay != null || key.maxSpendUsdPerDay != null;
-                    if (hasLimit) {
-                      const isSpend = key.maxSpendUsdPerDay != null;
-                      const limitVal = isSpend ? key.maxSpendUsdPerDay : key.maxRequestsPerDay;
-                      const usedVal = isSpend ? (key.dailySpendUsd || 0) : (key.dailyRequests || 0);
-                      const pct = limitVal ? Math.min(100, Math.round((usedVal / limitVal) * 100)) : 0;
-                      const label = isSpend
-                        ? `$${Number(usedVal).toFixed(2)} / $${Number(limitVal).toFixed(2)}`
-                        : `${usedVal} / ${limitVal} req`;
-                      const variant = pct >= 100 ? "error" : pct >= 80 ? "warning" : "success";
-
-                      return (
-                        <div className="mt-1.5 flex items-center gap-1.5">
-                          <Badge variant={variant} size="sm">
-                            {label}
-                          </Badge>
-                          <span className="text-[10px] text-text-muted">daily limit</span>
-                        </div>
-                      );
-                    }
-                    return null;
-                  })()}
                 </div>
 
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 mt-3 sm:mt-0">
-                  {(() => {
-                    const hasLimit = key.maxRequestsPerDay != null || key.maxSpendUsdPerDay != null;
-                    if (!hasLimit && (key.dailyRequests > 0 || key.dailySpendUsd > 0)) {
-                      return (
-                        <div className="flex flex-col sm:items-end opacity-100 sm:opacity-80 sm:group-hover:opacity-100 transition-all">
-                          <p className="text-xs font-semibold tabular-nums text-text-main">
-                            {key.dailyRequests || 0} req
-                          </p>
-                          {key.dailySpendUsd ? (
-                            <p className="text-[10px] text-text-muted tabular-nums">
-                              ~${Number(key.dailySpendUsd).toFixed(4)}
-                            </p>
-                          ) : null}
-                        </div>
-                      );
-                    }
-                    return null;
-                  })()}
-
                   <div className="flex items-center gap-2">
                     <Button
                       size="sm"
@@ -1178,6 +1161,24 @@ export default function APIPageClient({ machineId }) {
                     >
                       Configure
                     </Button>
+                    {(() => {
+                      const hasLimit = key.maxRequestsPerDay != null || key.maxSpendUsdPerDay != null;
+                      if (!hasLimit && (key.dailyRequests > 0 || key.dailySpendUsd > 0)) {
+                        return (
+                          <div className="flex flex-col items-end px-1 opacity-100 sm:opacity-85 transition-all text-right leading-none">
+                            <span className="text-xs font-semibold tabular-nums text-text-main">
+                              {key.dailyRequests || 0} req
+                            </span>
+                            {key.dailySpendUsd ? (
+                              <span className="text-[10px] text-text-muted tabular-nums mt-0.5">
+                                ~${Number(key.dailySpendUsd).toFixed(4)}
+                              </span>
+                            ) : null}
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
                     <Toggle
                       size="sm"
                       checked={key.isActive ?? true}
@@ -1437,8 +1438,13 @@ export default function APIPageClient({ machineId }) {
         }}
       >
         <div className="flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-1 rounded-lg border border-border bg-bg-subtle p-1">
-            {[{ value: "7d", label: "Weekly" }, { value: "30d", label: "Monthly" }].map((option) => (
+          <div className="grid grid-cols-4 gap-1 rounded-lg border border-border bg-bg-subtle p-1 overflow-x-auto min-w-max sm:min-w-0">
+            {[
+              { value: "1d", label: "Daily" },
+              { value: "7d", label: "Weekly" },
+              { value: "30d", label: "Monthly" },
+              { value: "all", label: "All time" }
+            ].map((option) => (
               <button
                 key={option.value}
                 type="button"
