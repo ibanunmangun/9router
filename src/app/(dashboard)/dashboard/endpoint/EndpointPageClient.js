@@ -85,6 +85,7 @@ export default function APIPageClient({ machineId }) {
   const [usageData, setUsageData] = useState(null);
   const [usageLoading, setUsageLoading] = useState(false);
   const [usageError, setUsageError] = useState(null);
+  const [usagePeriod, setUsagePeriod] = useState("today");
 
   // Client-side local/remote detection (UI hint only, not a security gate)
   const [isRemoteHost, setIsRemoteHost] = useState(false);
@@ -684,12 +685,11 @@ export default function APIPageClient({ machineId }) {
   };
 
 
-  const handleViewUsage = async (key) => {
-    setViewingUsageKey(key);
+  const fetchUsageStats = async (keyId, period) => {
     setUsageLoading(true);
     setUsageError(null);
     try {
-      const res = await fetch(`/api/keys/${key.id}/usage`);
+      const res = await fetch(`/api/keys/${keyId}/usage?period=${period}`);
       if (res.ok) {
         const data = await res.json();
         setUsageData(data.usage);
@@ -702,6 +702,12 @@ export default function APIPageClient({ machineId }) {
     } finally {
       setUsageLoading(false);
     }
+  };
+
+  const handleViewUsage = async (key) => {
+    setViewingUsageKey(key);
+    setUsagePeriod("today");
+    await fetchUsageStats(key.id, "today");
   };
 
   const handleUpdateKeyPolicy = async (id) => {
@@ -1346,6 +1352,22 @@ export default function APIPageClient({ machineId }) {
         }}
       >
         <div className="flex flex-col gap-4">
+          <div className="grid grid-cols-3 gap-1 rounded-lg border border-border bg-bg-subtle p-1">
+            {[{ value: "today", label: "Daily" }, { value: "7d", label: "Weekly" }, { value: "30d", label: "Monthly" }].map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                disabled={usageLoading}
+                onClick={() => {
+                  setUsagePeriod(option.value);
+                  fetchUsageStats(viewingUsageKey.id, option.value);
+                }}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${usagePeriod === option.value ? "bg-primary text-white shadow-sm" : "text-text-muted hover:bg-bg-hover hover:text-text"}`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
           {usageLoading ? (
             <div className="flex justify-center py-8">
               <div className="flex items-center gap-2 text-text-muted">
@@ -1383,10 +1405,10 @@ export default function APIPageClient({ machineId }) {
 
               {/* Recent Requests Table */}
               <div className="mt-4">
-                <h3 className="text-sm font-semibold mb-3">Recent Requests (30d)</h3>
+                <h3 className="text-sm font-semibold mb-3">Recent Requests</h3>
                 {!usageData.recentRequests || usageData.recentRequests.length === 0 ? (
                   <div className="text-center py-6 text-sm text-text-muted border border-dashed border-border rounded-lg">
-                    No requests found for this key in the last 30 days
+                    No requests found for this key in the selected period
                   </div>
                 ) : (
                   <div className="border border-border rounded-lg overflow-hidden bg-surface-1">
@@ -1404,7 +1426,7 @@ export default function APIPageClient({ machineId }) {
                           {usageData.recentRequests.map((req, i) => (
                             <tr key={req.id || i} className="hover:bg-surface-2/50">
                               <td className="px-3 py-2 whitespace-nowrap text-xs text-text-muted">
-                                {new Date(req.createdAt).toLocaleString()}
+                                {new Date(req.createdAt || req.timestamp).toLocaleString()}
                               </td>
                               <td className="px-3 py-2">
                                 <div className="font-medium text-xs">{req.model}</div>
@@ -1417,11 +1439,11 @@ export default function APIPageClient({ machineId }) {
                               </td>
                               <td className="px-3 py-2 text-right">
                                 <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                                  req.status >= 200 && req.status < 300
+                                  !req.status || typeof req.status === "number" && req.status >= 200 && req.status < 300 || typeof req.status === "string" && !req.status.toLowerCase().includes("fail") && !req.status.toLowerCase().includes("error") && !req.status.toLowerCase().includes("abort")
                                     ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
                                     : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
                                 }`}>
-                                  {req.status}
+                                  {req.status || "ok"}
                                 </span>
                               </td>
                             </tr>

@@ -10,7 +10,12 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: "API key not found" }, { status: 404 });
     }
 
-    const stats = await getUsageStats("30d", apiKey.key);
+    const { searchParams } = new URL(request.url);
+    const periodParam = searchParams.get("period") || "today";
+    const allowedPeriods = ["today", "7d", "30d"];
+    const period = allowedPeriods.includes(periodParam) ? periodParam : "today";
+
+    const stats = await getUsageStats(period, apiKey.key);
     return NextResponse.json({ usage: stats });
   } catch (error) {
     console.error("[keys/usage] Error fetching usage stats:", error);
