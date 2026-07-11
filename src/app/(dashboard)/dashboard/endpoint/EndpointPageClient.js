@@ -1334,7 +1334,7 @@ export default function APIPageClient({ machineId }) {
             </div>
             
             {(editForm.maxRequestsPerDay != null || editForm.maxSpendUsdPerDay != null) && (
-              <div className="flex flex-col pl-3 ml-2.5">
+              <div className="flex flex-col w-full">
                 <SegmentedControl
                   size="sm"
                   className="w-full bg-surface-2 p-1 rounded-t-lg rounded-b-none border-b border-border/50"
