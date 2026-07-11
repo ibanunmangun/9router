@@ -396,14 +396,14 @@ function ModelItem({ id, index, entry, activeProviders, isFirst, isLast, onEdit,
     <div
       ref={setNodeRef}
       style={style}
-      className={`group flex min-w-0 items-center gap-1.5 rounded-md px-2 py-1 bg-black/[0.02] hover:bg-black/[0.04] dark:bg-white/[0.02] dark:hover:bg-white/[0.04] transition-colors ${isDragging ? "shadow-md ring-1 ring-primary/30" : ""}`}
+      className={`group grid grid-cols-[auto_auto_1fr_auto_auto] items-start gap-x-2 gap-y-1 rounded-md px-2 py-1.5 bg-black/[0.02] hover:bg-black/[0.04] dark:bg-white/[0.02] dark:hover:bg-white/[0.04] transition-colors ${isDragging ? "shadow-md ring-1 ring-primary/30" : ""}`}
     >
-      {/* Drag handle */}
+      {/* Col 1: Drag handle */}
       <button
         {...attributes}
         {...listeners}
         type="button"
-        className="cursor-grab touch-none p-0.5 rounded text-text-muted hover:text-primary active:cursor-grabbing shrink-0"
+        className="cursor-grab touch-none p-0.5 rounded text-text-muted hover:text-primary active:cursor-grabbing shrink-0 mt-0.5"
         title="Drag to reorder"
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
@@ -413,11 +413,11 @@ function ModelItem({ id, index, entry, activeProviders, isFirst, isLast, onEdit,
         </svg>
       </button>
 
-      {/* Index badge */}
-      <span className="text-[10px] font-medium text-text-muted w-3 text-center shrink-0">{index + 1}</span>
+      {/* Col 2: Index badge */}
+      <span className="text-[10px] font-medium text-text-muted w-3 text-center shrink-0 mt-1">{index + 1}</span>
 
-      {/* Inline editable model value + Account selector stacked */}
-      <div className="min-w-0 flex-1 flex flex-col justify-center">
+      {/* Col 3: Inline editable model value */}
+      <div className="min-w-0">
         {editing ? (
           <input
             autoFocus
@@ -436,32 +436,10 @@ function ModelItem({ id, index, entry, activeProviders, isFirst, isLast, onEdit,
             {model}
           </div>
         )}
-
-        {/* Account selector — below model */}
-        {connections.length > 0 ? (
-          <select
-            value={connectionId}
-            onChange={(e) => onConnectionChange(e.target.value)}
-            onClick={(e) => e.stopPropagation()}
-            className="mt-0.5 w-fit max-w-full rounded bg-transparent px-1.5 py-0 text-[10px] text-text-muted outline-none hover:bg-black/5 dark:hover:bg-white/5"
-            title="Provider account for this combo model"
-          >
-            <option value="">Auto account</option>
-            {connections.map((connection) => (
-              <option key={connection.id} value={connection.id}>
-                Account: {connection.name || connection.email || connection.id.slice(0, 8)}
-              </option>
-            ))}
-          </select>
-        ) : (
-          <span className="mt-0.5 px-1.5 text-[10px] text-text-muted/50 select-none" title="No accounts configured for this provider">
-            Auto account
-          </span>
-        )}
       </div>
 
-      {/* Priority arrows */}
-      <div className="flex shrink-0 items-center gap-0.5">
+      {/* Col 4: Priority arrows */}
+      <div className="flex shrink-0 items-center gap-0.5 mt-0.5">
         <button
           onClick={onMoveUp}
           disabled={isFirst}
@@ -480,13 +458,42 @@ function ModelItem({ id, index, entry, activeProviders, isFirst, isLast, onEdit,
         </button>
       </div>
 
+      {/* Col 5: Remove button */}
       <button
         onClick={onRemove}
-        className="p-0.5 hover:bg-red-500/10 rounded text-text-muted hover:text-red-500 transition-all"
+        className="p-0.5 hover:bg-red-500/10 rounded text-text-muted hover:text-red-500 transition-all mt-0.5"
         title="Remove"
       >
         <span className="material-symbols-outlined text-[12px]">close</span>
       </button>
+
+      {/* Row 2: Account selector (spans columns 1 and 2 by offset, placed in column 3) */}
+      <div />
+      <div />
+      <div className="min-w-0 pr-2">
+        {connections.length > 0 ? (
+          <select
+            value={connectionId}
+            onChange={(e) => onConnectionChange(e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            className="w-full rounded bg-black/5 dark:bg-white/5 px-1.5 py-0.5 text-[10px] text-text-muted outline-none hover:bg-black/10 dark:hover:bg-white/10"
+            title="Provider account for this combo model"
+          >
+            <option value="">Auto account</option>
+            {connections.map((connection) => (
+              <option key={connection.id} value={connection.id}>
+                Account: {connection.name || connection.email || connection.id.slice(0, 8)}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <span className="px-1.5 py-0.5 text-[10px] text-text-muted/50 select-none block" title="No accounts configured for this provider">
+            Auto account
+          </span>
+        )}
+      </div>
+      <div />
+      <div />
     </div>
   );
 }
