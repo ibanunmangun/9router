@@ -1125,7 +1125,7 @@ export default function APIPageClient({ machineId }) {
                     const pct = limitVal ? Math.min(100, Math.round((usedVal / limitVal) * 100)) : 0;
                     const label = isSpend
                       ? `$${Number(usedVal).toFixed(2)} / $${Number(limitVal).toFixed(2)}`
-                      : `${usedVal} / ${limitVal} req`;
+                      : `${usedVal} / ${limitVal} REQ`;
                     const variant = pct >= 100 ? "error" : pct >= 80 ? "warning" : "success";
 
                     return (
@@ -1370,7 +1370,7 @@ export default function APIPageClient({ machineId }) {
                     />
                   </div>
                   <span className="w-12 text-center shrink-0 text-sm font-medium text-text-muted select-none">
-                    {editForm.maxSpendUsdPerDay != null ? "USD" : "req"}
+                    {editForm.maxSpendUsdPerDay != null ? "USD" : "REQ"}
                   </span>
                 </div>
               </div>
