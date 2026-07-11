@@ -39,6 +39,14 @@ export async function PUT(request, { params }) {
       if (extra[field] !== undefined) updateData[field] = extra[field];
     }
 
+    // Enforce mutual exclusivity: only one daily limit type allowed
+    if (updateData.maxRequestsPerDay != null && updateData.maxSpendUsdPerDay != null) {
+      return NextResponse.json(
+        { error: "API key cannot have both request limit and spend limit. Choose one." },
+        { status: 400 }
+      );
+    }
+
     const updated = await updateApiKey(id, updateData);
 
     return NextResponse.json({ key: updated });

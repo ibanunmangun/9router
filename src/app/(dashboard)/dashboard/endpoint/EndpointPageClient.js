@@ -1157,8 +1157,8 @@ export default function APIPageClient({ machineId }) {
                       setEditForm({
                         allowedModels: key.allowedModels || [],
                         expiresAt: key.expiresAt ? new Date(key.expiresAt).toISOString().split('T')[0] : "",
-                        maxRequestsPerDay: key.maxRequestsPerDay || "",
-                        maxSpendUsdPerDay: key.maxSpendUsdPerDay || ""
+                        maxRequestsPerDay: key.maxRequestsPerDay ?? null,
+                        maxSpendUsdPerDay: key.maxSpendUsdPerDay ?? null
                       });
                     }}
                     className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
@@ -1316,22 +1316,46 @@ export default function APIPageClient({ machineId }) {
             value={editForm.expiresAt || ""}
             onChange={(e) => setEditForm({ ...editForm, expiresAt: e.target.value })}
           />
-          <Input
-            label="Max Requests Per Day"
-            type="number"
-            value={editForm.maxRequestsPerDay || ""}
-            onChange={(e) => setEditForm({ ...editForm, maxRequestsPerDay: e.target.value })}
-            placeholder="Leave empty for unlimited"
-          />
-          <Input
-            label="Max Spend (USD) Per Day"
-            type="number"
-            step="0.01"
-            value={editForm.maxSpendUsdPerDay || ""}
-            onChange={(e) => setEditForm({ ...editForm, maxSpendUsdPerDay: e.target.value })}
-            placeholder="Leave empty for unlimited"
-          />
-          <div className="flex gap-2 mt-2">
+          <div className="flex flex-col gap-1.5 mt-2">
+            <label className="text-sm font-medium text-text-main">Daily Limit</label>
+            <div className="flex gap-2">
+              <select
+                className="w-1/3 py-2.5 px-3 text-sm text-text-main bg-surface-2 rounded-[10px] border border-transparent focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                value={editForm.maxSpendUsdPerDay != null ? "spend" : (editForm.maxRequestsPerDay != null ? "requests" : "none")}
+                onChange={(e) => {
+                  const mode = e.target.value;
+                  if (mode === "none") {
+                    setEditForm({ ...editForm, maxRequestsPerDay: null, maxSpendUsdPerDay: null });
+                  } else if (mode === "requests") {
+                    setEditForm({ ...editForm, maxRequestsPerDay: "", maxSpendUsdPerDay: null });
+                  } else if (mode === "spend") {
+                    setEditForm({ ...editForm, maxRequestsPerDay: null, maxSpendUsdPerDay: "" });
+                  }
+                }}
+              >
+                <option value="none">No limit</option>
+                <option value="requests">Max requests</option>
+                <option value="spend">Max USD spend</option>
+              </select>
+              {(editForm.maxRequestsPerDay != null || editForm.maxSpendUsdPerDay != null) && (
+                <input
+                  type="number"
+                  step={editForm.maxSpendUsdPerDay != null ? "0.01" : "1"}
+                  placeholder={editForm.maxSpendUsdPerDay != null ? "Amount in USD" : "Number of requests"}
+                  value={editForm.maxSpendUsdPerDay != null ? editForm.maxSpendUsdPerDay : editForm.maxRequestsPerDay}
+                  onChange={(e) => {
+                    if (editForm.maxSpendUsdPerDay != null) {
+                      setEditForm({ ...editForm, maxSpendUsdPerDay: e.target.value });
+                    } else {
+                      setEditForm({ ...editForm, maxRequestsPerDay: e.target.value });
+                    }
+                  }}
+                  className="w-2/3 py-2.5 px-3 text-sm text-text-main bg-surface-2 rounded-[10px] border border-transparent focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                />
+              )}
+            </div>
+          </div>
+          <div className="flex gap-2 mt-4">
             <Button onClick={() => handleUpdateKeyPolicy(editingKey)} fullWidth>
               Save Policy
             </Button>

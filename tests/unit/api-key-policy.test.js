@@ -1,6 +1,22 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { modelPatternMatches } from "../../src/shared/utils/modelPermissions.js";
 
+function validateDailyLimit(payload) {
+  const { maxRequestsPerDay, maxSpendUsdPerDay } = payload;
+  if (maxRequestsPerDay != null && maxSpendUsdPerDay != null) {
+    return { valid: false, error: "API key cannot have both request limit and spend limit. Choose one." };
+  }
+  return { valid: true };
+}
+
+function normalizeLimitPayload(payload) {
+  const { maxRequestsPerDay, maxSpendUsdPerDay, ...rest } = payload;
+  if (maxRequestsPerDay != null && maxSpendUsdPerDay != null) {
+    return { error: "API key cannot have both request limit and spend limit. Choose one." };
+  }
+  return { maxRequestsPerDay: maxRequestsPerDay ?? null, maxSpendUsdPerDay: maxSpendUsdPerDay ?? null, ...rest };
+}
+
 const mocks = vi.hoisted(() => ({
   getApiKeyMetadata: vi.fn(),
   getDailyUsageForApiKey: vi.fn(),
@@ -163,5 +179,28 @@ describe("getApiKeyPolicyError", () => {
 
     const err = await getApiKeyPolicyError("sk-test", "openai/gpt-5.5");
     expect(err.status).toBe(401);
+  });
+});
+
+describe("validateDailyLimit", () => {
+  it("allows payload when both maxRequestsPerDay and maxSpendUsdPerDay are null", () => {
+    const res = validateDailyLimit({ maxRequestsPerDay: null, maxSpendUsdPerDay: null });
+    expect(res.valid).toBe(true);
+  });
+
+  it("allows payload when only maxRequestsPerDay is present", () => {
+    const res = validateDailyLimit({ maxRequestsPerDay: 100, maxSpendUsdPerDay: null });
+    expect(res.valid).toBe(true);
+  });
+
+  it("allows payload when only maxSpendUsdPerDay is present", () => {
+    const res = validateDailyLimit({ maxRequestsPerDay: null, maxSpendUsdPerDay: 5.5 });
+    expect(res.valid).toBe(true);
+  });
+
+  it("rejects payload when both maxRequestsPerDay and maxSpendUsdPerDay are present", () => {
+    const res = validateDailyLimit({ maxRequestsPerDay: 100, maxSpendUsdPerDay: 5.5 });
+    expect(res.valid).toBe(false);
+    expect(res.error).toMatch(/cannot have both request limit and spend limit/i);
   });
 });

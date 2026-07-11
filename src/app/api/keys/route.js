@@ -29,15 +29,26 @@ export async function GET() {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { name, ...extra } = body;
+    const { name, maxRequestsPerDay, maxSpendUsdPerDay, ...extra } = body;
 
     if (!name) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
 
+    if (maxRequestsPerDay != null && maxSpendUsdPerDay != null) {
+      return NextResponse.json(
+        { error: "API key cannot have both request limit and spend limit. Choose one." },
+        { status: 400 }
+      );
+    }
+
     // Always get machineId from server
     const machineId = await getConsistentMachineId();
-    const apiKey = await createApiKey(name, machineId, extra);
+    const apiKey = await createApiKey(name, machineId, { 
+      maxRequestsPerDay, 
+      maxSpendUsdPerDay, 
+      ...extra 
+    });
 
     return NextResponse.json({
       key: apiKey.key,
