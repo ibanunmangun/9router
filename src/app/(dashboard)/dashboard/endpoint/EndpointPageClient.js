@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import PropTypes from "prop-types";
-import { Card, Button, Input, Modal, CardSkeleton, Toggle, ConfirmModal, ModelSelectModal } from "@/shared/components";
+import { Card, Button, Input, Modal, CardSkeleton, Toggle, ConfirmModal, ModelSelectModal, Badge } from "@/shared/components";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import {
   TUNNEL_BENEFITS,
@@ -1106,11 +1106,37 @@ export default function APIPageClient({ machineId }) {
                   {key.isActive === false && (
                     <p className="text-xs text-orange-500 mt-1">Paused</p>
                   )}
-                  {(key.dailyRequests > 0 || key.dailySpendUsd > 0) && (
-                    <p className="text-xs text-primary mt-1">
-                      Today: {key.dailyRequests || 0} requests {key.dailySpendUsd ? `(~${Number(key.dailySpendUsd).toFixed(4)} USD)` : ""}
-                    </p>
-                  )}
+                  {(() => {
+                    const hasLimit = key.maxRequestsPerDay != null || key.maxSpendUsdPerDay != null;
+                    if (!hasLimit) {
+                      if (key.dailyRequests > 0 || key.dailySpendUsd > 0) {
+                        return (
+                          <p className="text-xs text-primary mt-1">
+                            Today: {key.dailyRequests || 0} requests {key.dailySpendUsd ? `(~${Number(key.dailySpendUsd).toFixed(4)} USD)` : ""}
+                          </p>
+                        );
+                      }
+                      return null;
+                    }
+
+                    const isSpend = key.maxSpendUsdPerDay != null;
+                    const limitVal = isSpend ? key.maxSpendUsdPerDay : key.maxRequestsPerDay;
+                    const usedVal = isSpend ? (key.dailySpendUsd || 0) : (key.dailyRequests || 0);
+                    const pct = limitVal ? Math.min(100, Math.round((usedVal / limitVal) * 100)) : 0;
+                    const label = isSpend
+                      ? `$${Number(usedVal).toFixed(2)} / $${Number(limitVal).toFixed(2)}`
+                      : `${usedVal} / ${limitVal} req`;
+                    const variant = pct >= 100 ? "error" : pct >= 80 ? "warning" : "success";
+
+                    return (
+                      <div className="mt-1.5 flex items-center gap-1.5">
+                        <Badge variant={variant} size="sm">
+                          {label}
+                        </Badge>
+                        <span className="text-[10px] text-text-muted">daily limit</span>
+                      </div>
+                    );
+                  })()}
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
