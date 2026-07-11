@@ -713,7 +713,11 @@ export async function getUsageStats(period = "all", apiKey = null) {
     }
   }
 
-  stats.totalRequests = Object.values(stats.byProvider).reduce((sum, p) => sum + (p.requests || 0), 0);
+  if (apiKey) {
+    stats.totalRequests = Object.values(stats.byApiKey).reduce((sum, k) => sum + (k.requests || 0), 0);
+  } else {
+    stats.totalRequests = Object.values(stats.byProvider).reduce((sum, p) => sum + (p.requests || 0), 0);
+  }
   return stats;
 }
 

@@ -1452,30 +1452,30 @@ export default function APIPageClient({ machineId }) {
             </div>
           ) : usageData ? (
             <>
-              {/* Summary Cards */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="bg-surface-2 p-3 rounded-lg border border-border">
-                  <p className="text-xs text-text-muted mb-1">Total Requests</p>
-                  <p className="text-lg font-semibold">{usageData.totalRequests?.toLocaleString() || 0}</p>
+              {/* Summary List */}
+              <div className="flex flex-col rounded-lg border border-border bg-surface-2 overflow-hidden">
+                <div className="flex items-center justify-between p-3 border-b border-border/50">
+                  <p className="text-sm text-text-muted">Total Requests</p>
+                  <p className="text-base font-semibold tabular-nums">{usageData.totalRequests?.toLocaleString() || 0}</p>
                 </div>
-                <div className="bg-surface-2 p-3 rounded-lg border border-border">
-                  <p className="text-xs text-text-muted mb-1">Total Cost (USD)</p>
-                  <p className="text-lg font-semibold">
+                <div className="flex items-center justify-between p-3 border-b border-border/50">
+                  <p className="text-sm text-text-muted">Total Cost</p>
+                  <p className="text-base font-semibold tabular-nums text-primary">
                     ${Number(usageData.totalCost || 0).toFixed(4)}
                   </p>
                 </div>
-                <div className="bg-surface-2 p-3 rounded-lg border border-border">
-                  <p className="text-xs text-text-muted mb-1">Prompt Tokens</p>
-                  <p className="text-lg font-semibold">{usageData.totalPromptTokens?.toLocaleString() || 0}</p>
+                <div className="flex items-center justify-between p-3 border-b border-border/50">
+                  <p className="text-sm text-text-muted">Prompt Tokens</p>
+                  <p className="text-base font-semibold tabular-nums">{usageData.totalPromptTokens?.toLocaleString() || 0}</p>
                 </div>
-                <div className="bg-surface-2 p-3 rounded-lg border border-border">
-                  <p className="text-xs text-text-muted mb-1">Completion Tokens</p>
-                  <p className="text-lg font-semibold">{usageData.totalCompletionTokens?.toLocaleString() || 0}</p>
+                <div className="flex items-center justify-between p-3">
+                  <p className="text-sm text-text-muted">Completion Tokens</p>
+                  <p className="text-base font-semibold tabular-nums">{usageData.totalCompletionTokens?.toLocaleString() || 0}</p>
                 </div>
               </div>
 
               {/* Recent Requests Table */}
-              <div className="mt-4">
+              <div className="mt-2">
                 <h3 className="text-sm font-semibold mb-3">Recent Requests</h3>
                 {!usageData.recentRequests || usageData.recentRequests.length === 0 ? (
                   <div className="text-center py-6 text-sm text-text-muted border border-dashed border-border rounded-lg">
@@ -1483,29 +1483,29 @@ export default function APIPageClient({ machineId }) {
                   </div>
                 ) : (
                   <div className="border border-border rounded-lg overflow-hidden bg-surface-1">
-                    <div className="max-h-[300px] overflow-y-auto">
-                      <table className="w-full text-left text-sm">
+                    <div className="max-h-[300px] overflow-x-auto overflow-y-auto">
+                      <table className="w-full text-left text-sm min-w-[400px]">
                         <thead className="bg-surface-2 sticky top-0 border-b border-border text-xs text-text-muted uppercase">
                           <tr>
-                            <th className="px-3 py-2 font-medium">Time</th>
-                            <th className="px-3 py-2 font-medium">Model</th>
-                            <th className="px-3 py-2 font-medium">Tokens (In/Out)</th>
-                            <th className="px-3 py-2 font-medium text-right">Status</th>
+                            <th className="px-3 py-2 font-medium w-[150px]">Time</th>
+                            <th className="px-3 py-2 font-medium w-auto">Model</th>
+                            <th className="px-3 py-2 font-medium w-[120px] text-right">Tokens (In/Out)</th>
+                            <th className="px-3 py-2 font-medium w-[70px] text-right">Status</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
                           {usageData.recentRequests.map((req, i) => (
                             <tr key={req.id || i} className="hover:bg-surface-2/50">
-                              <td className="px-3 py-2 whitespace-nowrap text-xs text-text-muted">
+                              <td className="px-3 py-2 whitespace-nowrap text-xs text-text-muted tabular-nums">
                                 {new Date(req.createdAt || req.timestamp).toLocaleString()}
                               </td>
                               <td className="px-3 py-2">
-                                <div className="font-medium text-xs">{req.model}</div>
+                                <div className="font-medium text-xs break-all">{req.model}</div>
                                 {req.provider && (
                                   <div className="text-[10px] text-text-muted">{req.provider}</div>
                                 )}
                               </td>
-                              <td className="px-3 py-2 text-xs">
+                              <td className="px-3 py-2 text-xs text-right tabular-nums whitespace-nowrap">
                                 {req.promptTokens?.toLocaleString() || 0} / {req.completionTokens?.toLocaleString() || 0}
                               </td>
                               <td className="px-3 py-2 text-right">
