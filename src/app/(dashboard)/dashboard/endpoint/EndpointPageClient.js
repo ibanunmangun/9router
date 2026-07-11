@@ -74,8 +74,10 @@ export default function APIPageClient({ machineId }) {
   const [tunnelEverReachable, setTunnelEverReachable] = useState(false);
   const [tsEverReachable, setTsEverReachable] = useState(false);
 
-  // API key visibility toggle state
   const [visibleKeys, setVisibleKeys] = useState(new Set());
+
+  const [editingKey, setEditingKey] = useState(null);
+  const [editForm, setEditForm] = useState({});
 
   // Client-side local/remote detection (UI hint only, not a security gate)
   const [isRemoteHost, setIsRemoteHost] = useState(false);
@@ -667,6 +669,43 @@ export default function APIPageClient({ machineId }) {
     }
   };
 
+  const handleUpdateKeyPolicy = async (id) => {
+    try {
+      const allowedModelsArray = (editForm.allowedModels || "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const blockedModelsArray = (editForm.blockedModels || "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const payload = {
+        allowedModels: allowedModelsArray,
+        blockedModels: blockedModelsArray,
+        expiresAt: editForm.expiresAt ? new Date(editForm.expiresAt).toISOString() : null,
+        maxRequestsPerDay: editForm.maxRequestsPerDay ? Number(editForm.maxRequestsPerDay) : null,
+        maxSpendUsdPerDay: editForm.maxSpendUsdPerDay ? Number(editForm.maxSpendUsdPerDay) : null,
+      };
+
+      const res = await fetch(`/api/keys/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.key) {
+        setKeys(prev => prev.map(k => k.id === id ? { ...k, ...data.key } : k));
+        setEditingKey(null);
+        setEditForm({});
+      } else {
+        console.log("Failed to update key policy", data);
+      }
+    } catch (error) {
+      console.log("Error updating key policy:", error);
+    }
+  };
+
   const maskKey = (fullKey) => {
     if (!fullKey || fullKey.length <= 10) return fullKey || "";
     return fullKey.slice(0, 6) + "•".repeat(fullKey.length - 10) + fullKey.slice(-4);
@@ -1027,8 +1066,31 @@ export default function APIPageClient({ machineId }) {
                   {key.isActive === false && (
                     <p className="text-xs text-orange-500 mt-1">Paused</p>
                   )}
+                  {(key.dailyRequests > 0 || key.dailySpendUsd > 0) && (
+                    <p className="text-xs text-primary mt-1">
+                      Today: {key.dailyRequests || 0} requests {key.dailySpendUsd ? `(~${Number(key.dailySpendUsd).toFixed(4)} USD)` : ""}
+                    </p>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    icon="settings"
+                    onClick={() => {
+                      setEditingKey(key.id);
+                      setEditForm({
+                        allowedModels: (key.allowedModels || []).join(", "),
+                        blockedModels: (key.blockedModels || []).join(", "),
+                        expiresAt: key.expiresAt ? new Date(key.expiresAt).toISOString().split('T')[0] : "",
+                        maxRequestsPerDay: key.maxRequestsPerDay || "",
+                        maxSpendUsdPerDay: key.maxSpendUsdPerDay || ""
+                      });
+                    }}
+                    className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
+                  >
+                    Configure
+                  </Button>
                   <Toggle
                     size="sm"
                     checked={key.isActive ?? true}
@@ -1127,6 +1189,67 @@ export default function APIPageClient({ machineId }) {
           <Button onClick={() => setCreatedKey(null)} fullWidth>
             Done
           </Button>
+        </div>
+      </Modal>
+
+      {/* Edit Key Policy Modal */}
+      <Modal
+        isOpen={!!editingKey}
+        title="Configure API Key Policy"
+        onClose={() => {
+          setEditingKey(null);
+          setEditForm({});
+        }}
+      >
+        <div className="flex flex-col gap-4">
+          <Input
+            label="Allowed Models (comma separated)"
+            value={editForm.allowedModels || ""}
+            onChange={(e) => setEditForm({ ...editForm, allowedModels: e.target.value })}
+            placeholder="e.g. claude-3-opus, gpt-4"
+          />
+          <Input
+            label="Blocked Models (comma separated)"
+            value={editForm.blockedModels || ""}
+            onChange={(e) => setEditForm({ ...editForm, blockedModels: e.target.value })}
+            placeholder="e.g. text-davinci-003"
+          />
+          <Input
+            label="Expiration Date"
+            type="date"
+            value={editForm.expiresAt || ""}
+            onChange={(e) => setEditForm({ ...editForm, expiresAt: e.target.value })}
+          />
+          <Input
+            label="Max Requests Per Day"
+            type="number"
+            value={editForm.maxRequestsPerDay || ""}
+            onChange={(e) => setEditForm({ ...editForm, maxRequestsPerDay: e.target.value })}
+            placeholder="Leave empty for unlimited"
+          />
+          <Input
+            label="Max Spend (USD) Per Day"
+            type="number"
+            step="0.01"
+            value={editForm.maxSpendUsdPerDay || ""}
+            onChange={(e) => setEditForm({ ...editForm, maxSpendUsdPerDay: e.target.value })}
+            placeholder="Leave empty for unlimited"
+          />
+          <div className="flex gap-2 mt-2">
+            <Button onClick={() => handleUpdateKeyPolicy(editingKey)} fullWidth>
+              Save Policy
+            </Button>
+            <Button
+              onClick={() => {
+                setEditingKey(null);
+                setEditForm({});
+              }}
+              variant="ghost"
+              fullWidth
+            >
+              Cancel
+            </Button>
+          </div>
         </div>
       </Modal>
 
