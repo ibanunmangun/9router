@@ -82,10 +82,13 @@ export default function APIPageClient({ machineId }) {
   const [showAllowedModelSelect, setShowAllowedModelSelect] = useState(false);
 
   const [viewingUsageKey, setViewingUsageKey] = useState(null);
-  const [usageData, setUsageData] = useState(null);
+  const [usageDataCache, setUsageDataCache] = useState({});
   const [usageLoading, setUsageLoading] = useState(false);
   const [usageError, setUsageError] = useState(null);
   const [usagePeriod, setUsagePeriod] = useState("7d");
+  const [lastUsageData, setLastUsageData] = useState(null);
+  
+  const currentUsageData = viewingUsageKey ? usageDataCache[`${viewingUsageKey.id}:${usagePeriod}`] || lastUsageData : null;
 
   // Client-side local/remote detection (UI hint only, not a security gate)
   const [isRemoteHost, setIsRemoteHost] = useState(false);
@@ -686,13 +689,20 @@ export default function APIPageClient({ machineId }) {
 
 
   const fetchUsageStats = async (keyId, period) => {
+    const cacheKey = `${keyId}:${period}`;
+    if (usageDataCache[cacheKey]) {
+      setLastUsageData(usageDataCache[cacheKey]);
+      return;
+    }
+
     setUsageLoading(true);
     setUsageError(null);
     try {
       const res = await fetch(`/api/keys/${keyId}/usage?period=${period}`);
       if (res.ok) {
         const data = await res.json();
-        setUsageData(data.usage);
+        setUsageDataCache((prev) => ({ ...prev, [cacheKey]: data.usage }));
+        setLastUsageData(data.usage);
       } else {
         const data = await res.json();
         setUsageError(data.error || "Failed to load usage data");
@@ -706,6 +716,8 @@ export default function APIPageClient({ machineId }) {
 
   const handleViewUsage = async (key) => {
     setViewingUsageKey(key);
+    setUsageDataCache({});
+    setLastUsageData(null);
     setUsagePeriod("7d");
     await fetchUsageStats(key.id, "7d");
   };
@@ -1424,7 +1436,8 @@ export default function APIPageClient({ machineId }) {
         title={viewingUsageKey ? `Usage: ${viewingUsageKey.name}` : "Usage"}
         onClose={() => {
           setViewingUsageKey(null);
-          setUsageData(null);
+          setUsageDataCache({});
+          setLastUsageData(null);
         }}
       >
         <div className="flex flex-col gap-4">
@@ -1456,34 +1469,34 @@ export default function APIPageClient({ machineId }) {
             <div className="p-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg text-sm">
               {usageError}
             </div>
-          ) : usageData ? (
-            <div className={`transition-opacity duration-200 ${usageLoading ? "opacity-50 pointer-events-none" : "opacity-100"}`}>
+          ) : currentUsageData ? (
+            <div>
               {/* Summary List */}
               <div className="flex flex-col rounded-lg border border-border bg-surface-2 overflow-hidden">
                 <div className="flex items-center justify-between p-3 border-b border-border/50">
                   <p className="text-sm text-text-muted">Total Requests</p>
-                  <p className="text-base font-semibold tabular-nums">{usageData.totalRequests?.toLocaleString() || 0}</p>
+                  <p className="text-base font-semibold tabular-nums">{currentUsageData.totalRequests?.toLocaleString() || 0}</p>
                 </div>
                 <div className="flex items-center justify-between p-3 border-b border-border/50">
                   <p className="text-sm text-text-muted">Total Cost</p>
                   <p className="text-base font-semibold tabular-nums text-primary">
-                    ${Number(usageData.totalCost || 0).toFixed(4)}
+                    ${Number(currentUsageData.totalCost || 0).toFixed(4)}
                   </p>
                 </div>
                 <div className="flex items-center justify-between p-3 border-b border-border/50">
                   <p className="text-sm text-text-muted">Prompt Tokens</p>
-                  <p className="text-base font-semibold tabular-nums">{usageData.totalPromptTokens?.toLocaleString() || 0}</p>
+                  <p className="text-base font-semibold tabular-nums">{currentUsageData.totalPromptTokens?.toLocaleString() || 0}</p>
                 </div>
                 <div className="flex items-center justify-between p-3">
                   <p className="text-sm text-text-muted">Completion Tokens</p>
-                  <p className="text-base font-semibold tabular-nums">{usageData.totalCompletionTokens?.toLocaleString() || 0}</p>
+                  <p className="text-base font-semibold tabular-nums">{currentUsageData.totalCompletionTokens?.toLocaleString() || 0}</p>
                 </div>
               </div>
 
               {/* Recent Requests Table */}
               <div className="mt-2">
                 <h3 className="text-sm font-semibold mb-3">Recent Requests</h3>
-                {!usageData.recentRequests || usageData.recentRequests.length === 0 ? (
+                {!currentUsageData.recentRequests || currentUsageData.recentRequests.length === 0 ? (
                   <div className="text-center py-6 text-sm text-text-muted border border-dashed border-border rounded-lg">
                     No requests found for this key in the selected period
                   </div>
@@ -1500,7 +1513,7 @@ export default function APIPageClient({ machineId }) {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
-                          {usageData.recentRequests.map((req, i) => (
+                          {currentUsageData.recentRequests.map((req, i) => (
                             <tr key={req.id || i} className="hover:bg-surface-2/50">
                               <td className="px-3 py-2 whitespace-nowrap text-xs text-text-muted tabular-nums">
                                 {new Date(req.createdAt || req.timestamp).toLocaleString()}
