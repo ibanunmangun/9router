@@ -416,25 +416,49 @@ function ModelItem({ id, index, entry, activeProviders, isFirst, isLast, onEdit,
       {/* Index badge */}
       <span className="text-[10px] font-medium text-text-muted w-3 text-center shrink-0">{index + 1}</span>
 
-      {/* Inline editable model value */}
-      {editing ? (
-        <input
-          autoFocus
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={commit}
-          onKeyDown={handleKeyDown}
-          className="min-w-0 flex-1 rounded border border-primary/40 bg-white px-1.5 py-0.5 font-mono text-xs text-text-main outline-none dark:bg-black/20"
-        />
-      ) : (
-        <div
-          className="min-w-0 flex-1 cursor-text truncate rounded px-1.5 py-0.5 font-mono text-xs text-text-main hover:bg-black/5 dark:hover:bg-white/5"
-          onClick={() => setEditing(true)}
-          title="Click to edit"
-        >
-          {model}
-        </div>
-      )}
+      {/* Inline editable model value + Account selector stacked */}
+      <div className="min-w-0 flex-1 flex flex-col justify-center">
+        {editing ? (
+          <input
+            autoFocus
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={commit}
+            onKeyDown={handleKeyDown}
+            className="w-full rounded border border-primary/40 bg-white px-1.5 py-0.5 font-mono text-xs text-text-main outline-none dark:bg-black/20"
+          />
+        ) : (
+          <div
+            className="w-full cursor-text truncate rounded px-1.5 py-0.5 font-mono text-xs text-text-main hover:bg-black/5 dark:hover:bg-white/5"
+            onClick={() => setEditing(true)}
+            title="Click to edit"
+          >
+            {model}
+          </div>
+        )}
+
+        {/* Account selector — below model */}
+        {connections.length > 0 ? (
+          <select
+            value={connectionId}
+            onChange={(e) => onConnectionChange(e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            className="mt-0.5 w-fit max-w-full rounded bg-transparent px-1.5 py-0 text-[10px] text-text-muted outline-none hover:bg-black/5 dark:hover:bg-white/5"
+            title="Provider account for this combo model"
+          >
+            <option value="">Auto account</option>
+            {connections.map((connection) => (
+              <option key={connection.id} value={connection.id}>
+                Account: {connection.name || connection.email || connection.id.slice(0, 8)}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <span className="mt-0.5 px-1.5 text-[10px] text-text-muted/50 select-none" title="No accounts configured for this provider">
+            Auto account
+          </span>
+        )}
+      </div>
 
       {/* Priority arrows */}
       <div className="flex shrink-0 items-center gap-0.5">
@@ -456,27 +480,6 @@ function ModelItem({ id, index, entry, activeProviders, isFirst, isLast, onEdit,
         </button>
       </div>
 
-      {/* Account selector — always rendered to keep alignment */}
-      {connections.length > 0 ? (
-        <select
-          value={connectionId}
-          onChange={(e) => onConnectionChange(e.target.value)}
-          onClick={(e) => e.stopPropagation()}
-          className="w-[120px] rounded bg-black/5 px-1.5 py-0.5 text-[11px] text-text-muted outline-none hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10"
-          title="Provider account for this combo model"
-        >
-          <option value="">Auto account</option>
-          {connections.map((connection) => (
-            <option key={connection.id} value={connection.id}>
-              {connection.name || connection.email || connection.id.slice(0, 8)}
-            </option>
-          ))}
-        </select>
-      ) : (
-        <span className="w-[120px] text-center text-[11px] text-text-muted/50 select-none" title="No accounts configured for this provider">
-          Auto account
-        </span>
-      )}
       <button
         onClick={onRemove}
         className="p-0.5 hover:bg-red-500/10 rounded text-text-muted hover:text-red-500 transition-all"
