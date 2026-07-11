@@ -85,7 +85,7 @@ export default function APIPageClient({ machineId }) {
   const [usageData, setUsageData] = useState(null);
   const [usageLoading, setUsageLoading] = useState(false);
   const [usageError, setUsageError] = useState(null);
-  const [usagePeriod, setUsagePeriod] = useState("today");
+  const [usagePeriod, setUsagePeriod] = useState("7d");
 
   // Client-side local/remote detection (UI hint only, not a security gate)
   const [isRemoteHost, setIsRemoteHost] = useState(false);
@@ -706,8 +706,8 @@ export default function APIPageClient({ machineId }) {
 
   const handleViewUsage = async (key) => {
     setViewingUsageKey(key);
-    setUsagePeriod("today");
-    await fetchUsageStats(key.id, "today");
+    setUsagePeriod("7d");
+    await fetchUsageStats(key.id, "7d");
   };
 
   const handleUpdateKeyPolicy = async (id) => {
@@ -1106,14 +1106,25 @@ export default function APIPageClient({ machineId }) {
                   {key.isActive === false && (
                     <p className="text-xs text-orange-500 mt-1">Paused</p>
                   )}
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 mt-3 sm:mt-0">
+                  {/* Daily usage/limit on the right */}
                   {(() => {
                     const hasLimit = key.maxRequestsPerDay != null || key.maxSpendUsdPerDay != null;
                     if (!hasLimit) {
                       if (key.dailyRequests > 0 || key.dailySpendUsd > 0) {
                         return (
-                          <p className="text-xs text-primary mt-1">
-                            Today: {key.dailyRequests || 0} requests {key.dailySpendUsd ? `(~${Number(key.dailySpendUsd).toFixed(4)} USD)` : ""}
-                          </p>
+                          <div className="flex flex-col sm:items-end opacity-100 sm:opacity-80 sm:group-hover:opacity-100 transition-all">
+                            <p className="text-xs font-semibold tabular-nums text-text-main">
+                              {key.dailyRequests || 0} req
+                            </p>
+                            {key.dailySpendUsd ? (
+                              <p className="text-[10px] text-text-muted tabular-nums">
+                                ~${Number(key.dailySpendUsd).toFixed(4)}
+                              </p>
+                            ) : null}
+                          </div>
                         );
                       }
                       return null;
@@ -1129,67 +1140,68 @@ export default function APIPageClient({ machineId }) {
                     const variant = pct >= 100 ? "error" : pct >= 80 ? "warning" : "success";
 
                     return (
-                      <div className="mt-1.5 flex items-center gap-1.5">
+                      <div className="flex flex-col sm:items-end opacity-100 sm:opacity-80 sm:group-hover:opacity-100 transition-all">
                         <Badge variant={variant} size="sm">
                           {label}
                         </Badge>
-                        <span className="text-[10px] text-text-muted">daily limit</span>
+                        <span className="text-[10px] text-text-muted mt-0.5">daily limit</span>
                       </div>
                     );
                   })()}
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    icon="bar_chart"
-                    onClick={() => handleViewUsage(key)}
-                    className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
-                  >
-                    View Usage
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    icon="settings"
-                    onClick={() => {
-                      setEditingKey(key.id);
-                      setEditForm({
-                        allowedModels: key.allowedModels || [],
-                        expiresAt: key.expiresAt ? new Date(key.expiresAt).toISOString().split('T')[0] : "",
-                        maxRequestsPerDay: key.maxRequestsPerDay ?? null,
-                        maxSpendUsdPerDay: key.maxSpendUsdPerDay ?? null
-                      });
-                    }}
-                    className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
-                  >
-                    Configure
-                  </Button>
-                  <Toggle
-                    size="sm"
-                    checked={key.isActive ?? true}
-                    onChange={(checked) => {
-                      if (key.isActive && !checked) {
-                        setConfirmState({
-                          title: "Pause API Key",
-                          message: `Pause API key "${key.name}"?\n\nThis key will stop working immediately but can be resumed later.`,
-                          onConfirm: async () => {
-                            setConfirmState(null);
-                            handleToggleKey(key.id, checked);
-                          }
+
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      icon="bar_chart"
+                      onClick={() => handleViewUsage(key)}
+                      className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
+                    >
+                      Usage
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      icon="settings"
+                      onClick={() => {
+                        setEditingKey(key.id);
+                        setEditForm({
+                          allowedModels: key.allowedModels || [],
+                          expiresAt: key.expiresAt ? new Date(key.expiresAt).toISOString().split('T')[0] : "",
+                          maxRequestsPerDay: key.maxRequestsPerDay ?? null,
+                          maxSpendUsdPerDay: key.maxSpendUsdPerDay ?? null
                         });
-                      } else {
-                        handleToggleKey(key.id, checked);
-                      }
-                    }}
-                    title={key.isActive ? "Pause key" : "Resume key"}
-                  />
-                  <button
-                    onClick={() => handleDeleteKey(key.id)}
-                    className="p-2 hover:bg-red-500/10 rounded text-red-500 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
-                  >
-                    <span className="material-symbols-outlined text-[18px]">delete</span>
-                  </button>
+                      }}
+                      className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
+                    >
+                      Configure
+                    </Button>
+                    <Toggle
+                      size="sm"
+                      checked={key.isActive ?? true}
+                      onChange={(checked) => {
+                        if (key.isActive && !checked) {
+                          setConfirmState({
+                            title: "Pause API Key",
+                            message: `Pause API key "${key.name}"?\n\nThis key will stop working immediately but can be resumed later.`,
+                            onConfirm: async () => {
+                              setConfirmState(null);
+                              handleToggleKey(key.id, checked);
+                            }
+                          });
+                        } else {
+                          handleToggleKey(key.id, checked);
+                        }
+                      }}
+                      title={key.isActive ? "Pause key" : "Resume key"}
+                    />
+                    <button
+                      onClick={() => handleDeleteKey(key.id)}
+                      className="p-2 hover:bg-red-500/10 rounded text-red-500 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">delete</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -1423,8 +1435,8 @@ export default function APIPageClient({ machineId }) {
         }}
       >
         <div className="flex flex-col gap-4">
-          <div className="grid grid-cols-3 gap-1 rounded-lg border border-border bg-bg-subtle p-1">
-            {[{ value: "today", label: "Daily" }, { value: "7d", label: "Weekly" }, { value: "30d", label: "Monthly" }].map((option) => (
+          <div className="grid grid-cols-2 gap-1 rounded-lg border border-border bg-bg-subtle p-1">
+            {[{ value: "7d", label: "Weekly" }, { value: "30d", label: "Monthly" }].map((option) => (
               <button
                 key={option.value}
                 type="button"
