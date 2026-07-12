@@ -25,36 +25,8 @@ describe("OpenAI → Gemini", () => {
 });
 
 describe("Antigravity JSON Schema cleanup", () => {
-  it("normalizes MCP-style lowercase schema types to Vertex enum names recursively", () => {
+  it("normalizes uppercase Vertex-style types back to JSON Schema lowercase recursively", () => {
     const cleaned = cleanJSONSchemaForAntigravity({
-      type: "object",
-      properties: {
-        query: { type: "string" },
-        limit: { type: "integer" },
-        threshold: { type: "number" },
-        enabled: { type: "boolean" },
-        filters: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              field: { type: "string" },
-              values: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    label: { type: "string" },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
-
-    expect(cleaned).toMatchObject({
       type: "OBJECT",
       properties: {
         query: { type: "STRING" },
@@ -73,6 +45,34 @@ describe("Antigravity JSON Schema cleanup", () => {
                   type: "OBJECT",
                   properties: {
                     label: { type: "STRING" },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    expect(cleaned).toMatchObject({
+      type: "object",
+      properties: {
+        query: { type: "string" },
+        limit: { type: "integer" },
+        threshold: { type: "number" },
+        enabled: { type: "boolean" },
+        filters: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              field: { type: "string" },
+              values: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    label: { type: "string" },
                   },
                 },
               },

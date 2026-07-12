@@ -36,13 +36,13 @@ export const DEFAULT_SAFETY_SETTINGS = [
   { category: "HARM_CATEGORY_CIVIC_INTEGRITY", threshold: "OFF" }
 ];
 
-const VERTEX_SCHEMA_TYPES = {
-  string: "STRING",
-  number: "NUMBER",
-  integer: "INTEGER",
-  boolean: "BOOLEAN",
-  array: "ARRAY",
-  object: "OBJECT"
+const JSON_SCHEMA_TYPES = {
+  STRING: "string",
+  NUMBER: "number",
+  INTEGER: "integer",
+  BOOLEAN: "boolean",
+  ARRAY: "array",
+  OBJECT: "object"
 };
 
 // Convert OpenAI content to Gemini parts
@@ -304,16 +304,16 @@ function flattenTypeArrays(obj) {
   }
 }
 
-function normalizeVertexSchemaTypes(obj) {
+function normalizeJsonSchemaTypes(obj) {
   if (!obj || typeof obj !== "object") return;
 
-  if (typeof obj.type === "string" && VERTEX_SCHEMA_TYPES[obj.type]) {
-    obj.type = VERTEX_SCHEMA_TYPES[obj.type];
+  if (typeof obj.type === "string" && JSON_SCHEMA_TYPES[obj.type]) {
+    obj.type = JSON_SCHEMA_TYPES[obj.type];
   }
 
   for (const value of Object.values(obj)) {
     if (value && typeof value === "object") {
-      normalizeVertexSchemaTypes(value);
+      normalizeJsonSchemaTypes(value);
     }
   }
 }
@@ -398,7 +398,7 @@ export function cleanJSONSchemaForAntigravity(schema) {
 
   addPlaceholders(cleaned);
 
-  normalizeVertexSchemaTypes(cleaned);
+  normalizeJsonSchemaTypes(cleaned);
 
   return cleaned;
 }
