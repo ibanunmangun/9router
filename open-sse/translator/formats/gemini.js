@@ -36,15 +36,6 @@ export const DEFAULT_SAFETY_SETTINGS = [
   { category: "HARM_CATEGORY_CIVIC_INTEGRITY", threshold: "OFF" }
 ];
 
-const JSON_SCHEMA_TYPES = {
-  STRING: "string",
-  NUMBER: "number",
-  INTEGER: "integer",
-  BOOLEAN: "boolean",
-  ARRAY: "array",
-  OBJECT: "object"
-};
-
 // Convert OpenAI content to Gemini parts
 export function convertOpenAIContentToParts(content) {
   const parts = [];
@@ -304,25 +295,16 @@ function flattenTypeArrays(obj) {
   }
 }
 
-function normalizeJsonSchemaTypes(obj) {
-  if (!obj || typeof obj !== "object") return;
-
-  if (typeof obj.type === "string" && JSON_SCHEMA_TYPES[obj.type]) {
-    obj.type = JSON_SCHEMA_TYPES[obj.type];
-  }
-
-  for (const value of Object.values(obj)) {
-    if (value && typeof value === "object") {
-      normalizeJsonSchemaTypes(value);
-    }
-  }
-}
-
 // Infer missing type=object when properties exist (Gemini requires explicit type)
 function ensureObjectType(obj) {
   if (!obj || typeof obj !== "object") return;
   if (obj.properties && !obj.type) obj.type = "object";
-  for (const v of Object.values(obj)) if (v && typeof v === "object") ensureObjectType(v);
+  if (obj.properties && typeof obj.properties === "object") {
+    for (const value of Object.values(obj.properties)) {
+      if (value && typeof value === "object") ensureObjectType(value);
+    }
+  }
+  if (obj.items && typeof obj.items === "object") ensureObjectType(obj.items);
 }
 
 // Clean JSON Schema for Antigravity API compatibility - removes unsupported keywords recursively
@@ -397,8 +379,6 @@ export function cleanJSONSchemaForAntigravity(schema) {
   }
 
   addPlaceholders(cleaned);
-
-  normalizeJsonSchemaTypes(cleaned);
 
   return cleaned;
 }

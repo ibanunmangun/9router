@@ -25,62 +25,26 @@ describe("OpenAI → Gemini", () => {
 });
 
 describe("Antigravity JSON Schema cleanup", () => {
-  it("normalizes uppercase Vertex-style types back to JSON Schema lowercase recursively", () => {
+  it("infers type=object for properties children and items but not arbitrary nested values", () => {
     const cleaned = cleanJSONSchemaForAntigravity({
-      type: "OBJECT",
       properties: {
-        query: { type: "STRING" },
-        limit: { type: "INTEGER" },
-        threshold: { type: "NUMBER" },
-        enabled: { type: "BOOLEAN" },
-        filters: {
-          type: "ARRAY",
-          items: {
-            type: "OBJECT",
-            properties: {
-              field: { type: "STRING" },
-              values: {
-                type: "ARRAY",
-                items: {
-                  type: "OBJECT",
-                  properties: {
-                    label: { type: "STRING" },
-                  },
-                },
-              },
-            },
+        query: { type: "string" },
+        nested: {
+          properties: {
+            deep: { type: "string" },
           },
+        },
+      },
+      items: {
+        properties: {
+          itemField: { type: "string" },
         },
       },
     });
 
-    expect(cleaned).toMatchObject({
-      type: "object",
-      properties: {
-        query: { type: "string" },
-        limit: { type: "integer" },
-        threshold: { type: "number" },
-        enabled: { type: "boolean" },
-        filters: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              field: { type: "string" },
-              values: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    label: { type: "string" },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
+    expect(cleaned.type).toBe("object");
+    expect(cleaned.properties.nested.type).toBe("object");
+    expect(cleaned.items.type).toBe("object");
   });
 });
 
