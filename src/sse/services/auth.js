@@ -1,6 +1,6 @@
 import { getProviderConnections, validateApiKey, updateProviderConnection, getSettings, getProxyPools, getApiKeyMetadata, touchApiKey } from "@/lib/localDb";
 import { resolveConnectionProxyConfig, pickProxyPoolId } from "@/lib/network/connectionProxy";
-import { formatRetryAfter, checkFallbackError, isModelLockActive, buildModelLockUpdate, getEarliestModelLockUntil } from "open-sse/services/accountFallback.js";
+import { formatRetryAfter, checkFallbackError, isModelLockActive, buildModelLockUpdate, getEarliestModelLockUntil, isQuotaExhaustion, MODEL_LOCK_ALL } from "open-sse/services/accountFallback.js";
 import { MAX_RATE_LIMIT_COOLDOWN_MS } from "open-sse/config/errorConfig.js";
 import { resolveProviderId, FREE_PROVIDERS } from "@/shared/constants/providers.js";
 import { modelPatternMatches } from "@/shared/utils/modelPermissions.js";
@@ -219,7 +219,14 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
 
   // Provider-specific precise cooldown (e.g. codex usage_limit_reached resets_at) overrides backoff
   let shouldFallback, cooldownMs, newBackoffLevel;
-  if (resetsAtMs && resetsAtMs > Date.now()) {
+  let isAccountWideQuotaPause = false;
+
+  if (resetsAtMs && resetsAtMs > Date.now() && isQuotaExhaustion(status, errorText)) {
+    shouldFallback = true;
+    cooldownMs = resetsAtMs - Date.now();
+    newBackoffLevel = 0;
+    isAccountWideQuotaPause = true;
+  } else if (resetsAtMs && resetsAtMs > Date.now()) {
     shouldFallback = true;
     cooldownMs = Math.min(resetsAtMs - Date.now(), MAX_RATE_LIMIT_COOLDOWN_MS);
     newBackoffLevel = 0;
@@ -229,7 +236,9 @@ export async function markAccountUnavailable(connectionId, status, errorText, pr
   if (!shouldFallback) return { shouldFallback: false, cooldownMs: 0 };
 
   const reason = typeof errorText === "string" ? errorText.slice(0, 100) : "Provider error";
-  const lockUpdate = buildModelLockUpdate(model, cooldownMs);
+  const lockUpdate = isAccountWideQuotaPause
+    ? { [MODEL_LOCK_ALL]: new Date(Date.now() + cooldownMs).toISOString() }
+    : buildModelLockUpdate(model, cooldownMs);
 
   await updateProviderConnection(connectionId, {
     ...lockUpdate,

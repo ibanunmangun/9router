@@ -60,6 +60,88 @@ describe("modelPatternMatches", () => {
   });
 });
 
+describe("isModelAllowedForKey", () => {
+  let isModelAllowedForKey;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    mocks.getApiKeyMetadata.mockResolvedValue(null);
+
+    const auth = await import("../../src/sse/services/auth.js");
+    isModelAllowedForKey = auth.isModelAllowedForKey;
+  });
+
+  it("allows all models when no apiKey is provided", async () => {
+    expect(await isModelAllowedForKey(null, "kr/claude-sonnet-4.5")).toBe(true);
+    expect(await isModelAllowedForKey(undefined, "kr/claude-sonnet-4.5")).toBe(true);
+    expect(await isModelAllowedForKey("", "kr/claude-sonnet-4.5")).toBe(true);
+  });
+
+  it("allows all models when no modelId is provided", async () => {
+    expect(await isModelAllowedForKey("sk-test", null)).toBe(true);
+    expect(await isModelAllowedForKey("sk-test", undefined)).toBe(true);
+    expect(await isModelAllowedForKey("sk-test", "")).toBe(true);
+  });
+
+  it("allows all models when key has no metadata", async () => {
+    mocks.getApiKeyMetadata.mockResolvedValue(null);
+    expect(await isModelAllowedForKey("sk-test", "kr/claude-sonnet-4.5")).toBe(true);
+  });
+
+  it("allows all models when allowedModels is empty array", async () => {
+    mocks.getApiKeyMetadata.mockResolvedValue({ allowedModels: [] });
+    expect(await isModelAllowedForKey("sk-test", "kr/claude-sonnet-4.5")).toBe(true);
+  });
+
+  it("allows all models when allowedModels is not defined", async () => {
+    mocks.getApiKeyMetadata.mockResolvedValue({});
+    expect(await isModelAllowedForKey("sk-test", "kr/claude-sonnet-4.5")).toBe(true);
+  });
+
+  it("blocks model not in allowedModels list", async () => {
+    mocks.getApiKeyMetadata.mockResolvedValue({
+      allowedModels: ["openai/gpt-5.5", "glm/glm-5"],
+    });
+    expect(await isModelAllowedForKey("sk-test", "kr/claude-sonnet-4.5")).toBe(false);
+  });
+
+  it("allows model exactly matching an allowedModels entry", async () => {
+    mocks.getApiKeyMetadata.mockResolvedValue({
+      allowedModels: ["openai/gpt-5.5", "kr/claude-sonnet-4.5"],
+    });
+    expect(await isModelAllowedForKey("sk-test", "kr/claude-sonnet-4.5")).toBe(true);
+  });
+
+  it("allows model matching wildcard pattern", async () => {
+    mocks.getApiKeyMetadata.mockResolvedValue({
+      allowedModels: ["kr/*"],
+    });
+    expect(await isModelAllowedForKey("sk-test", "kr/claude-sonnet-4.5")).toBe(true);
+    expect(await isModelAllowedForKey("sk-test", "kr/claude-haiku-4.5")).toBe(true);
+    expect(await isModelAllowedForKey("sk-test", "kr/glm-5")).toBe(true);
+    expect(await isModelAllowedForKey("sk-test", "openai/gpt-5.5")).toBe(false);
+  });
+
+  it("allows model matching glob wildcard pattern", async () => {
+    mocks.getApiKeyMetadata.mockResolvedValue({
+      allowedModels: ["claude-sonnet*"],
+    });
+    expect(await isModelAllowedForKey("sk-test", "claude-sonnet-4.5")).toBe(true);
+    expect(await isModelAllowedForKey("sk-test", "claude-sonnet-4.6")).toBe(true);
+    expect(await isModelAllowedForKey("sk-test", "claude-opus-4-6")).toBe(false);
+  });
+
+  it("allows model if ANY pattern matches", async () => {
+    mocks.getApiKeyMetadata.mockResolvedValue({
+      allowedModels: ["openai/*", "kr/claude-sonnet-4.5", "glm/*"],
+    });
+    expect(await isModelAllowedForKey("sk-test", "kr/claude-sonnet-4.5")).toBe(true);
+    expect(await isModelAllowedForKey("sk-test", "openai/gpt-5.5")).toBe(true);
+    expect(await isModelAllowedForKey("sk-test", "glm/glm-5")).toBe(true);
+    expect(await isModelAllowedForKey("sk-test", "minimax/MiniMax-M2.7")).toBe(false);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // getApiKeyPolicyError (auth.js — uses DB mocks)
 // ---------------------------------------------------------------------------
