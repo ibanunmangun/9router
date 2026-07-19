@@ -169,11 +169,13 @@ export default function ComboFormModal({ isOpen, combo, onClose, onSave, activeP
         </div>
       </Modal>
 
-      <ModelSelectModal isOpen={showModelSelect} onClose={() => setShowModelSelect(false)}
-        onSelect={handleAddModel} onDeselect={handleDeselectModel}
-        activeProviders={activeProviders} modelAliases={modelAliases}
-        title="Add Model to Combo" kindFilter={kindFilter}
-        addedModelValues={models.map(getComboModelValue)} closeOnSelect={false} />
+      {showModelSelect && (
+        <ModelSelectModal isOpen={showModelSelect} onClose={() => setShowModelSelect(false)}
+          onSelect={handleAddModel} onDeselect={handleDeselectModel}
+          activeProviders={activeProviders} modelAliases={modelAliases}
+          title="Add Model to Combo" kindFilter={kindFilter}
+          addedModelValues={models.map(getComboModelValue)} closeOnSelect={false} />
+      )}
     </>
   );
 }
