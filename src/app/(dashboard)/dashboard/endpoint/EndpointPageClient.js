@@ -1449,6 +1449,7 @@ export default function APIPageClient({ machineId }) {
         title="Add Allowed Model to Policy"
         addedModelValues={editForm.allowedModels || []}
         closeOnSelect={false}
+        includeMediaKinds
       />
 
       {/* Usage Modal */}
