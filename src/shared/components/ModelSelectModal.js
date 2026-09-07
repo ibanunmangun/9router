@@ -7,7 +7,7 @@ import ProviderIcon from "./ProviderIcon";
 import CapacityBadges from "./CapacityBadges";
 import { useModelCaps } from "@/shared/hooks/useModelCaps";
 import { getModelsByProviderId, getModelKind } from "@/shared/constants/models";
-import { OAUTH_PROVIDERS, APIKEY_PROVIDERS, FREE_PROVIDERS, FREE_TIER_PROVIDERS, AI_PROVIDERS, isOpenAICompatibleProvider, isAnthropicCompatibleProvider, getProviderAlias, MEDIA_PROVIDER_KINDS } from "@/shared/constants/providers";
+import { OAUTH_PROVIDERS, APIKEY_PROVIDERS, FREE_PROVIDERS, FREE_TIER_PROVIDERS, AI_PROVIDERS, isOpenAICompatibleProvider, isAnthropicCompatibleProvider, isCustomEmbeddingProvider, getProviderAlias, MEDIA_PROVIDER_KINDS } from "@/shared/constants/providers";
 
 // Provider order: OAuth first, then Free Tier, then API Key (matches dashboard/providers)
 const PROVIDER_ORDER = [
@@ -154,6 +154,10 @@ export default function ModelSelectModal({
   const filterActiveProvidersByKind = useCallback((kind) => {
     if (!kind) return activeProviders;
     return activeProviders.filter((p) => {
+      // Custom Embedding nodes (id: custom-embedding-<uuid>) aren't registered in
+      // AI_PROVIDERS, so they'd otherwise fall back to the ["llm"] default and get
+      // filtered out of every non-LLM kind, including "embedding" itself.
+      if (isCustomEmbeddingProvider(p.provider)) return kind === "embedding";
       const info = AI_PROVIDERS[p.provider];
       const kinds = info?.serviceKinds || ["llm"];
       return kinds.includes(kind);
@@ -209,6 +213,7 @@ export default function ModelSelectModal({
       const alias = getProviderAlias(providerId);
       const providerInfo = allProviders[providerId] || { name: providerId, color: "#666" };
       const isCustomProvider = isOpenAICompatibleProvider(providerId) || isAnthropicCompatibleProvider(providerId);
+      const isCustomEmbedding = isCustomEmbeddingProvider(providerId);
 
       // For provider-as-model kinds (webSearch/webFetch): emit a single entry where value === providerId
       if (effectiveKindFilter && PROVIDER_AS_MODEL_KINDS.has(effectiveKindFilter)) {
@@ -326,6 +331,40 @@ export default function ModelSelectModal({
           models: modelsToShow,
           isCustom: true,
           hasModels: mergedModels.length > 0,
+        };
+      } else if (isCustomEmbedding) {
+        // Custom Embedding nodes (created via System -> Media Providers -> Embedding)
+        // only ever expose embedding models, so skip them entirely for the LLM
+        // selector and every other kind — same restriction AddCustomEmbeddingModal
+        // and EmbeddingExampleCard already apply.
+        if (effectiveKindFilter !== "embedding") return;
+        const matchedNode = providerNodes.find(node => node.id === providerId);
+        const connection = activeProviders.find(p => p.provider === providerId);
+        const displayName = matchedNode?.name || connection?.name || providerInfo.name;
+        const nodePrefix = matchedNode?.prefix || connection?.providerSpecificData?.prefix || providerId;
+
+        // Unlike openai/anthropic-compatible nodes, custom embedding models are
+        // registered via /api/models/custom with providerAlias = the node prefix,
+        // not the raw providerId (see media-providers/[kind]/[id]/page.js passing
+        // providerAliasOverride={customNode?.prefix} into ModelsCard).
+        const registeredModels = customModels
+          .filter((m) => m.providerAlias === nodePrefix && getModelKind(m, "llm") === "embedding")
+          .map((m) => ({ id: m.id, name: m.name || m.id, value: `${nodePrefix}/${m.id}`, isCustom: true }));
+
+        const modelsToShow = registeredModels.length > 0 ? registeredModels : [{
+          id: `__placeholder__${providerId}`,
+          name: `${nodePrefix}/model-id`,
+          value: `${nodePrefix}/model-id`,
+          isPlaceholder: true,
+        }];
+
+        groups[providerId] = {
+          name: displayName,
+          alias: nodePrefix,
+          color: providerInfo.color,
+          models: modelsToShow,
+          isCustom: true,
+          hasModels: registeredModels.length > 0,
         };
       } else {
         const hardcodedModels = providerId === "cursor" && cursorModels.length > 0
