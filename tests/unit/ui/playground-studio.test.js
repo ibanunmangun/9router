@@ -350,6 +350,30 @@ describe('PlaygroundStudio Shell', () => {
     reversed.unmount();
   });
 
+  test('labels built-in providers from the registry but custom endpoint nodes from their connection name', () => {
+    const mixedModels = [
+      { id: 'codex/gpt-5', label: 'GPT-5', provider: { id: 'codex', name: 'not-registry-name', connectionId: 'c-1' } },
+      {
+        id: 'openai-compatible-chat-3e9094b6/model-a',
+        label: 'Model A',
+        provider: { id: 'openai-compatible-chat-3e9094b6', name: 'Work Endpoint', connectionId: 'c-2' },
+      },
+      {
+        id: 'openai-compatible-chat-cf6b2d64/model-b',
+        label: 'Model B',
+        provider: { id: 'openai-compatible-chat-cf6b2d64', name: 'Personal Endpoint', connectionId: 'c-3' },
+      },
+    ];
+    renderConfigPane({ models: mixedModels });
+
+    expect(Array.from(screen.getByTestId('chat-provider-filter').options, (option) => [option.value, option.textContent])).toEqual([
+      ['', 'All providers'],
+      ['codex', 'OpenAI Codex'],
+      ['openai-compatible-chat-cf6b2d64', 'Personal Endpoint'],
+      ['openai-compatible-chat-3e9094b6', 'Work Endpoint'],
+    ]);
+  });
+
   test('clears an incompatible Chat model with an explicit model-null configuration transition', () => {
     const { unmount } = renderConfigPane({ config: { model: providerFilterModels[0] } });
     const providerFilter = screen.getByTestId('chat-provider-filter');
@@ -528,6 +552,24 @@ describe('PlaygroundStudio Shell', () => {
       expect(body).not.toHaveProperty('providerFilter');
     }
     await waitFor(() => expect(onResult).toHaveBeenCalledTimes(2));
+  });
+
+  test('labels built-in providers from the registry but custom endpoint nodes from their connection name in Compare', () => {
+    const mixedModels = [
+      { id: 'codex/gpt-5', label: 'GPT-5', provider: { id: 'codex', name: 'not-registry-name', connectionId: 'c-1' } },
+      {
+        id: 'openai-compatible-chat-3e9094b6/model-a',
+        label: 'Model A',
+        provider: { id: 'openai-compatible-chat-3e9094b6', name: 'Work Endpoint', connectionId: 'c-2' },
+      },
+    ];
+    renderCompareWorkspace({ models: mixedModels });
+
+    expect(Array.from(screen.getByTestId('provider-filter-col-default-a').options, (option) => [option.value, option.textContent])).toEqual([
+      ['', 'All providers'],
+      ['codex', 'OpenAI Codex'],
+      ['openai-compatible-chat-3e9094b6', 'Work Endpoint'],
+    ]);
   });
 
   test('filters Compare columns independently by provider ID and keeps reversed provider ordering stable', () => {
