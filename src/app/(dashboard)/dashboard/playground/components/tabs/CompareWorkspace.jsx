@@ -3,6 +3,7 @@ import { buildPlaygroundRequest } from "../../lib/requestBuilder";
 import { createSseParser } from "../../lib/sseParser";
 import { createMetricAccumulator } from "../../lib/metrics";
 import { sanitizePlaygroundData } from "../../lib/sanitize";
+import { AI_PROVIDERS } from "@/shared/constants/providers";
 
 const DEFAULT_COLUMN_IDS = ["col-default-a", "col-default-b"]; // fixed, deterministic, no randomness at initial render
 
@@ -14,21 +15,24 @@ function compareText(left, right) {
   return left < right ? -1 : left > right ? 1 : 0;
 }
 
+// Label is the provider's own display name (registry), never the connected
+// account's name — an account label can be an OAuth email and would leak
+// account identity into a filter meant to group by provider type.
+function providerDisplayName(id) {
+  return AI_PROVIDERS[id]?.name || id;
+}
+
 function buildProviderOptions(models) {
-  const providerNames = new Map();
+  const providerIds = new Set();
 
   for (const model of models) {
     const id = canonicalProviderId(model.provider?.id);
-    if (!id) continue;
-    const name = typeof model.provider?.name === "string" ? model.provider.name.trim() : "";
-    const names = providerNames.get(id) || [];
-    if (name) names.push(name);
-    providerNames.set(id, names);
+    if (id) providerIds.add(id);
   }
 
-  return Array.from(providerNames, ([id, names]) => ({
+  return Array.from(providerIds, (id) => ({
     id,
-    label: names.sort(compareText)[0] || id,
+    label: providerDisplayName(id),
   })).sort((left, right) => compareText(left.label, right.label) || compareText(left.id, right.id));
 }
 

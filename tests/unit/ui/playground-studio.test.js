@@ -322,10 +322,10 @@ describe('PlaygroundStudio Shell', () => {
     });
     expect(Array.from(providerFilter.options, (option) => [option.value, option.textContent])).toEqual([
       ['', 'All providers'],
-      ['alpha', 'Alpha'],
-      ['beta', 'Shared'],
-      ['gamma', 'Shared'],
+      ['alpha', 'alpha'],
+      ['beta', 'beta'],
       ['delta', 'delta'],
+      ['gamma', 'gamma'],
     ]);
 
     fireEvent.change(providerFilter, { target: { value: 'alpha' } });
@@ -342,10 +342,10 @@ describe('PlaygroundStudio Shell', () => {
     const reversed = renderConfigPane({ models: [...providerFilterModels].reverse() });
     expect(Array.from(screen.getByTestId('chat-provider-filter').options, (option) => [option.value, option.textContent])).toEqual([
       ['', 'All providers'],
-      ['alpha', 'Alpha'],
-      ['beta', 'Shared'],
-      ['gamma', 'Shared'],
+      ['alpha', 'alpha'],
+      ['beta', 'beta'],
       ['delta', 'delta'],
+      ['gamma', 'gamma'],
     ]);
     reversed.unmount();
   });
@@ -552,10 +552,10 @@ describe('PlaygroundStudio Shell', () => {
     expect(screen.getByRole('combobox', { name: 'Select model for column 2' })).toBe(secondModel);
     expect(Array.from(firstFilter.options, (option) => [option.value, option.textContent])).toEqual([
       ['', 'All providers'],
-      ['alpha', 'Alpha'],
-      ['beta', 'Shared'],
-      ['gamma', 'Shared'],
+      ['alpha', 'alpha'],
+      ['beta', 'beta'],
       ['delta', 'delta'],
+      ['gamma', 'gamma'],
     ]);
 
     fireEvent.change(firstFilter, { target: { value: 'alpha' } });
@@ -575,10 +575,10 @@ describe('PlaygroundStudio Shell', () => {
     renderCompareWorkspace({ models: [...providerFilterModels].reverse() });
     expect(Array.from(screen.getByTestId('provider-filter-col-default-a').options, (option) => [option.value, option.textContent])).toEqual([
       ['', 'All providers'],
-      ['alpha', 'Alpha'],
-      ['beta', 'Shared'],
-      ['gamma', 'Shared'],
+      ['alpha', 'alpha'],
+      ['beta', 'beta'],
       ['delta', 'delta'],
+      ['gamma', 'gamma'],
     ]);
   });
 
