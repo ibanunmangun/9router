@@ -3,6 +3,12 @@ import { buildPlaygroundRequest } from "../../lib/requestBuilder";
 import { createSseParser } from "../../lib/sseParser";
 import { createMetricAccumulator } from "../../lib/metrics";
 import { sanitizePlaygroundData } from "../../lib/sanitize";
+import {
+  AI_PROVIDERS,
+  isOpenAICompatibleProvider,
+  isAnthropicCompatibleProvider,
+  isCustomEmbeddingProvider,
+} from "@/shared/constants/providers";
 
 const DEFAULT_COLUMN_IDS = ["col-default-a", "col-default-b"]; // fixed, deterministic, no randomness at initial render
 
@@ -14,21 +20,38 @@ function compareText(left, right) {
   return left < right ? -1 : left > right ? 1 : 0;
 }
 
+function isCustomNodeProvider(id) {
+  return isOpenAICompatibleProvider(id) || isAnthropicCompatibleProvider(id) || isCustomEmbeddingProvider(id);
+}
+
+// Built-in providers label from the registry's own display name, never the
+// connected account's name — an account label can be an OAuth email and
+// would leak account identity into a filter meant to group by provider type.
+// Custom endpoint nodes (openai-compatible-*, anthropic-compatible-*,
+// custom-embedding-*) have no registry entry and a generated id — for those,
+// the connection name IS the node name the user picked (auth is API-key
+// based, never an OAuth email), so it's used instead to identify which
+// endpoint is which.
+function providerDisplayName(id, connectionName) {
+  if (isCustomNodeProvider(id)) return connectionName || id;
+  return AI_PROVIDERS[id]?.name || id;
+}
+
 function buildProviderOptions(models) {
   const providerNames = new Map();
 
   for (const model of models) {
     const id = canonicalProviderId(model.provider?.id);
     if (!id) continue;
-    const name = typeof model.provider?.name === "string" ? model.provider.name.trim() : "";
-    const names = providerNames.get(id) || [];
-    if (name) names.push(name);
-    providerNames.set(id, names);
+    if (!providerNames.has(id)) {
+      const name = typeof model.provider?.name === "string" ? model.provider.name.trim() : "";
+      providerNames.set(id, name);
+    }
   }
 
-  return Array.from(providerNames, ([id, names]) => ({
+  return Array.from(providerNames, ([id, name]) => ({
     id,
-    label: names.sort(compareText)[0] || id,
+    label: providerDisplayName(id, name),
   })).sort((left, right) => compareText(left.label, right.label) || compareText(left.id, right.id));
 }
 
