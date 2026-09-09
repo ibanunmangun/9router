@@ -205,8 +205,10 @@ export default function QuotaTable({
                 </div>
               </div>
 
-              {/* Reset time */}
-              <div className="min-w-0 shrink">
+              {/* Reset time — fixed width so the progress-bar track (flex-1) stays
+                  the same size across rows in the same card, regardless of how
+                  long the countdown text is (e.g. "in 5h 0m" vs "in 29d 20h 24m") */}
+              <div className={`${compact ? "w-24" : "w-32"} min-w-0 shrink-0`}>
                 {countdown !== "-" || resetDisplay ? (
                   compact ? (
                     <div
