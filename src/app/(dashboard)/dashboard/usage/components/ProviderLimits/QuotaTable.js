@@ -210,17 +210,17 @@ export default function QuotaTable({
                       icon columns, so it's identical across every row in a
                       card regardless of what the countdown text says. */}
                   <span className="flex items-center gap-1 min-w-0 shrink-0">
-                    <span className={`font-medium ${isUnlimited ? "text-green-600 dark:text-green-400" : colors.text}`}>
-                      {isUnlimited ? "Unlimited" : `${quota.remaining}%`}
-                    </span>
                     {!isUnlimited && (countdown !== "-" || resetDisplay) && (
                       <span
                         className="text-text-muted truncate"
                         title={resetDisplay || ""}
                       >
-                        · {countdown !== "-" ? countdownLabel : resetDisplay}
+                        {countdown !== "-" ? countdownLabel : resetDisplay} ·
                       </span>
                     )}
+                    <span className={`font-medium ${isUnlimited ? "text-green-600 dark:text-green-400" : colors.text}`}>
+                      {isUnlimited ? "Unlimited" : `${quota.remaining}%`}
+                    </span>
                   </span>
                 </div>
               </div>
