@@ -15,8 +15,7 @@ export default {
   transport: {
     baseUrl: "https://kenari.id/v1/chat/completions",
     validateUrl: "https://kenari.id/v1/models",
-    // Quota endpoint rejects shared keys (403 shared_key_not_allowed) —
-    // usage tracking only works with a non-shared key.
+    // Quota retrieval is implemented by open-sse/services/usage/kenari.js.
     usage: {
       url: "https://kenari.id/v1/account/quota",
     },
@@ -27,6 +26,6 @@ export default {
     { id: "gemini-2-5-flash-lite", name: "Gemini 2.5 Flash Lite" },
     { id: "gpt-oss-120b", name: "GPT-OSS 120B" },
   ],
-  // Quota/balance panel deferred until a non-shared `kn-` key is available (plan Todo 5/6).
+  features: { usage: true, usageApikey: true },
   passthroughModels: true,
 };
