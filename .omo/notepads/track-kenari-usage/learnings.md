@@ -23,3 +23,24 @@ _Auto-scaffolded by /start-work. Append new entries below - never overwrite._
 - Added code comment above transport.usage: quota endpoint rejects shared keys (403 shared_key_not_allowed) — context for Todo 6.
 - Acceptance: `node -e "import('./open-sse/providers/registry/kenari.js').then(m=>console.log(m.default.id, m.default.category, m.default.passthroughModels))"` prints `kenari apikey true` (exit 0). Node emits a benign MODULE_TYPELESS_PACKAGE_JSON warning on this repo (no "type":"module" in root package.json) — not an error.
 - Did NOT touch registry/index.js (Todo 2).
+
+## Todo 2 — hand-register kenari in registry/index.js (2026-09-09)
+
+- Added `import p125 from "./kenari.js";` immediately after `import p124 from "./xquik.js";` (line 127) and `p125,` as the last array entry before `];` (line 253). Diff is exactly +2 lines, nothing else touched.
+- p125 confirmed as the next unused number: highest existing is p124; gaps (p101/p102/p104/p114/p123) are pre-existing and were left alone.
+- Acceptance: `node -e "import('./open-sse/providers/index.js').then(m=>console.log(!!m.PROVIDERS.kenari, m.PROVIDER_MODELS.kenari?.length>=0))"` prints `true true` (exit 0).
+- Negative check (plan QA-failure): with the `p125,` array entry removed but the import kept, the same command prints `false false` — proving the array entry is what registers the provider into PROVIDERS/PROVIDER_MODELS. Restored the entry; final state re-verified `true true`.
+- Note: the file's "Auto-generated" header is stale — no working generator exists; hand-editing is the sanctioned path. Do not run scripts/migrate-registry.mjs.
+
+## Todo 7 — kenari pricing in open-sse/providers/pricing.js (2026-09-09)
+
+- Added `export const KENARI_IDR_PER_USD = 17500;` just above `PROVIDER_PRICING` (source: tests/fixtures/kenari/pricing.json top-level `usd_idr_rate`, fetched 2026-09-09, manual snapshot not live).
+- Added `PROVIDER_PRICING.kenari` sibling block (after tokenrouter, before closing `};`). Conversion formula: `usdPerMillion = microIdrPer1M / 1_000_000 / 17500`.
+- Computed values (raw micro-IDR/1M → USD/1M):
+  - step-3-7-flash: input 4,200,000,000 → 0.24; output 24,000,000,000 → 1.371429; cached 840,000,000 → 0.048; cache_write null → OMITTED
+  - glm-5-3-flash: input 15,000,000 → 0.000857; output 50,000,000 → 0.002857; cached 2,500,000 → 0.000143; cache_write null → OMITTED
+  - gemini-2-5-flash-lite: input 400,000,000 → 0.022857; output 1,700,000,000 → 0.097143; cached 40,000,000 → 0.002286; cache_write 350,000,000 → 0.02 (cache_creation)
+  - gpt-oss-120b: input 630,000,000 → 0.036; output 3,500,000,000 → 0.2; cached 63,000,000 → 0.0036; cache_write null → OMITTED
+- Rule applied: fixture `null` cache_write → omit `cache_creation` field entirely (cost calc falls back to `pricing.cache_creation || pricing.input`). Only a genuine zero rate would be escalated; null = not offered.
+- Exact comment text used above the kenari block: "Kenari — rates converted from kenari's own pricing fixture (tests/fixtures/kenari/pricing.json, captured via public GET /api/public/pricing, no auth, fetched 2026-09-09). Fixture unit is micro-IDR per 1M tokens; converted to USD/1M with KENARI_IDR_PER_USD (kenari's own usd_idr_rate field). Manual refresh only, not live. cache_creation omitted where the fixture has null cache_write (dimension not offered) — the cost calculator falls back to pricing.input in that case."
+- Verification: `getPricingForModel('kenari', <each seed>)` returns the objects above; `git diff` shows ONLY the kenari block + KENARI_IDR_PER_USD constant, nothing else touched. No build/test run (Windows workstation).

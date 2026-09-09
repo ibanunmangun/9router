@@ -78,7 +78,7 @@ Dependency matrix: 4←(none) ; 1←4 ; 2←1 ; 3←2 ; 5←(key) ; 6←5 ; 7←
   - **QA failure (executable):** write a throwaway `scripts/tmp-kenari-url-check.mjs` that imports `getExecutor` from `open-sse/executors/index.js` AFTER Todo 2 registers kenari, calls `getExecutor("kenari").buildUrl(...)` with a minimal credentials object, and asserts the resolved URL equals `https://kenari.id/v1/chat/completions`; then flip the registry `baseUrl` to a wrong value and assert the URL changes; revert and delete the throwaway. (This QA runs after Todo 2.) Evidence: `.qa-results/01-url-assert.txt`.
   - **Commit:** `feat(providers): add kenari.id registry entry`
 
-- [ ] 2. `open-sse/providers/registry/index.js`: hand-register kenari (blocked by 1)
+- [x] 2. `open-sse/providers/registry/index.js`: hand-register kenari (blocked by 1)
   - **References:** `open-sse/providers/registry/index.js` (hand-maintained; existing `pN` import + array pattern); Approved exceptions above.
   - **Do:** add `import pN from "./kenari.js";` with the next free `pN`, append `pN` to the exported array, matching existing ordering/format. Touch no unrelated lines.
   - **Acceptance:** on homelab, `node -e "import('./open-sse/providers/index.js').then(m=>console.log(!!m.PROVIDERS.kenari, m.PROVIDER_MODELS.kenari?.length>=0))"` → `true true`.
@@ -120,7 +120,7 @@ Dependency matrix: 4←(none) ; 1←4 ; 2←1 ; 3←2 ; 5←(key) ; 6←5 ; 7←
   - **QA failure (executable):** mock `403 shared_key_not_allowed` → assert message-only object, no throw, no fabricated balance; assert route does not refresh credentials (apikey path `route.js:158-176`). Evidence: `.qa-results/06-shared-key.txt`.
   - **Commit:** `feat(usage): add kenari balance adapter + dispatch`
 
-- [ ] 7. `open-sse/providers/pricing.js`: add kenari pricing (blocked by 4)
+- [x] 7. `open-sse/providers/pricing.js`: add kenari pricing (blocked by 4)
   - **References:** precedence override→canonical(incl. last slash segment)→pattern→null `open-sse/providers/pricing.js:375-391`; USD/1M unit `pricing.js:1`; cost calc `usageRepo.js:138-145`; cache arithmetic `pricing.js:433,445` (`cached||input`, `cache_creation||input`); Todo-4 `pricing.json` fixture.
   - **Do:** add a `PROVIDER_PRICING["kenari"]` block with per-model input/output (+ cache-read/cache-write where the feed provides them), converted with the explicit formula `usdPerMillion = microIdrPerMillion / 1_000_000 / KENARI_IDR_PER_USD` via a single module constant `KENARI_IDR_PER_USD` (comment: source + capture date + manual-refresh note). Map feed cache fields EXPLICITLY to `cached` / `cache_creation`. **If the feed has a legitimate zero cache rate:** do NOT encode it (the shared `cached||input` arithmetic would charge input rate, and fixing that is out of scope) — instead ESCALATE to Nulla. Do NOT edit global `MODEL_PRICING`/`PATTERN_PRICING`.
   - **Acceptance:** on homelab, `getPricingForModel("kenari","<seed-model>")` returns USD rates matching the formula (assert the exact number from a fixture value); the SAME model id under another provider is unchanged.
