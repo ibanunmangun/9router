@@ -86,7 +86,7 @@ Dependency matrix: 4←(none) ; 1←4 ; 2←1 ; 3←2 ; 5←(key) ; 6←5 ; 7←
   - **QA failure (executable):** remove the array entry (keep the import), re-run the acceptance node cmd → `false`; restore. Evidence: `.qa-results/02-negative.txt`.
   - **Commit:** `feat(providers): register kenari in registry index`
 
-- [ ] 3. Prove usage auto-tracking via a mocked-upstream integration test (blocked by 2)
+- [x] 3. Prove usage auto-tracking via a mocked-upstream integration test (blocked by 2)
   - **References:** `usageRepo.js:281` saveRequestUsage; `src/app/api/usage/stats/route.js`; `src/sse/handlers/chat.js:363-371` (connectionId/apiKey passthrough); existing streaming/non-streaming test harness patterns under `tests/` (mock `proxyAwareFetch`/upstream fetch). This todo's product-code output is ZERO — it is a NEW test file `tests/unit/kenari-tracking.test.js` proving the registry entry suffices for tracking.
   - **Do:** write `tests/unit/kenari-tracking.test.js` that mocks a kenari chat completion (known token counts) through the routing path with a mocked upstream, and asserts a `usageHistory` row with `provider="kenari"`, the expected `connectionId`, exact token totals, and NO duplicate row; plus `/api/usage/stats` `byProvider.kenari` present. Use the same mock harness as existing usage tests (identify the exact helper in an existing `tests/unit/*` file and reuse it).
   - **Acceptance:** on homelab, from `/app/tests`: `npx vitest run unit/kenari-tracking.test.js` exits 0.
