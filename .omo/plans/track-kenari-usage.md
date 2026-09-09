@@ -70,7 +70,7 @@ Dependency matrix: 4←(none) ; 1←4 ; 2←1 ; 3←2 ; 5←(key) ; 6←5 ; 7←
 
 ## Todos
 
-- [ ] 1. `open-sse/providers/registry/kenari.js`: create the registry entry (blocked by 4)
+- [x] 1. `open-sse/providers/registry/kenari.js`: create the registry entry (blocked by 4)
   - **References:** template `open-sse/providers/REGISTRY_TEMPLATE.js`; field contract `open-sse/providers/schema.js:5-29` (docs/defaults, not an executable validator); analog `open-sse/providers/registry/groq.js` (apikey + transport.usage.url + features.usage/usageApikey), `deepseek.js` (models + features); executor URL/auth build `open-sse/executors/default.js:129-146`. kenari facts: base `https://kenari.id/v1`, chat `POST /v1/chat/completions`, models `GET /v1/models` (public), quota `GET /v1/account/quota`, Bearer `kn-`.
   - **Do:** export default object: `id: "kenari"`, `category: "apikey"`, `passthroughModels: true`, `display: { name: "kenari", website: "https://kenari.id", notice: { apiKeyUrl: "https://kenari.id/login" } }`, `transport: { baseUrl: "https://kenari.id/v1/chat/completions", validateUrl: "https://kenari.id/v1/models", usage: { url: "https://kenari.id/v1/account/quota" } }`, `features: { usage: true, usageApikey: true }`, and a seed `models: [...]` of 2-4 model ids **taken from Todo 4's `tests/fixtures/kenari/models.json`**. `passthroughModels` routes the rest.
   - **Acceptance:** on homelab, `node -e "import('./open-sse/providers/registry/kenari.js').then(m=>console.log(m.default.id, m.default.category, m.default.passthroughModels))"` from repo root prints `kenari apikey true`; each seed model id also appears in `tests/fixtures/kenari/models.json`.
