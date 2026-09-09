@@ -11,6 +11,8 @@ import {
   MODEL_PRICING,
 } from "../../open-sse/providers/pricing.js";
 import { isValidModel } from "../../src/shared/constants/models.js";
+import { parseModel } from "../../open-sse/services/model.js";
+import { getModelUpstreamId } from "../../open-sse/config/providerModels.js";
 
 describe("kenari pricing conversion (IDR micro-units → USD/1M)", () => {
   it("converts seeded kenari models from the PROVIDER_PRICING.kenari override", () => {
@@ -90,5 +92,22 @@ describe("kenari passthrough routing", () => {
     // groq has no passthroughModels flag and does not list vendor/new-model,
     // proving the passthrough behavior is specific to the kenari entry.
     expect(isValidModel("groq", "vendor/new-model")).toBe(false);
+  });
+
+  it("routes a nested unseeded model id to the upstream unchanged", () => {
+    // Plan line 133: kenari/vendor/new-model → upstream vendor/new-model.
+    // parseModel splits on the first slash and resolves the provider segment
+    // (kenari's alias === id, so no alias rewrite).
+    expect(parseModel("kenari/vendor/new-model")).toEqual({
+      provider: "kenari",
+      model: "vendor/new-model",
+      isAlias: false,
+      providerAlias: "kenari",
+    });
+    // getModelUpstreamId is what decides the model string sent upstream. kenari
+    // has no registry entry for vendor/new-model, so findModel returns undefined
+    // and the fallback returns the base id unchanged — passthrough at the
+    // routing layer, distinct from the isValidModel validation-layer test above.
+    expect(getModelUpstreamId("kenari", "vendor/new-model")).toBe("vendor/new-model");
   });
 });

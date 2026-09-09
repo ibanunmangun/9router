@@ -21,6 +21,14 @@ vi.mock("@/lib/usageDb.js", async (importOriginal) => {
     saveRequestDetail: vi.fn().mockResolvedValue(undefined),
   };
 });
+// The /api/usage/stats route handler is exercised directly (Gap A): mock
+// NextResponse.json to a plain { body, status } object so the handler can be
+// called without a Next.js runtime, mirroring proxy-pool-fitness-routes.test.js.
+vi.mock("next/server", () => ({
+  NextResponse: {
+    json: (body, init = {}) => ({ body, status: init?.status || 200 }),
+  },
+}));
 
 const MODEL = "step-3-7-flash";
 const CONNECTION_ID = "kenari-tracking-connection";
@@ -35,6 +43,7 @@ let usageDb;
 let proxyAwareFetch;
 let DefaultExecutor;
 let handleNonStreamingResponse;
+let getUsageStatsRoute;
 
 beforeAll(async () => {
   tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "9router-kenari-tracking-"));
@@ -49,6 +58,7 @@ beforeAll(async () => {
   ({ proxyAwareFetch } = await import("../../open-sse/utils/proxyFetch.js"));
   ({ DefaultExecutor } = await import("../../open-sse/executors/default.js"));
   ({ handleNonStreamingResponse } = await import("../../open-sse/handlers/chatCore/nonStreamingHandler.js"));
+  ({ GET: getUsageStatsRoute } = await import("../../src/app/api/usage/stats/route.js"));
   vi.clearAllMocks();
 });
 
@@ -133,5 +143,17 @@ describe("kenari automatic request usage tracking", () => {
         requests: 1, promptTokens: 123, completionTokens: 45,
       });
     }
+
+    // The HTTP-facing /api/usage/stats route (not just the DB helper it wraps)
+    // must surface kenari. Call the real GET handler with period=all and assert
+    // the same byProvider.kenari shape the direct getUsageStats("all") call above
+    // already proved — the row written earlier in this test is what it reads.
+    const routeResponse = await getUsageStatsRoute(
+      new Request("http://router.test/api/usage/stats?period=all")
+    );
+    expect(routeResponse.status).toBe(200);
+    expect(routeResponse.body.byProvider.kenari).toMatchObject({
+      requests: 1, promptTokens: 123, completionTokens: 45,
+    });
   });
 });
