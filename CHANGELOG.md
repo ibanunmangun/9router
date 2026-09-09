@@ -1,3 +1,8 @@
+# v0.5.70 (2026-09-09)
+
+## Features
+- **Providers**: add kenari.id as an OpenAI-compatible provider with automatic usage tracking and IDR→USD pricing
+
 # v0.5.69 (2026-09-05)
 
 ## Features
