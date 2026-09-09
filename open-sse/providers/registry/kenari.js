@@ -27,9 +27,6 @@ export default {
     { id: "gemini-2-5-flash-lite", name: "Gemini 2.5 Flash Lite" },
     { id: "gpt-oss-120b", name: "GPT-OSS 120B" },
   ],
-  features: {
-    usage: true,
-    usageApikey: true,
-  },
+  // Quota/balance panel deferred until a non-shared `kn-` key is available (plan Todo 5/6).
   passthroughModels: true,
 };

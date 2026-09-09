@@ -42,10 +42,23 @@ describe("kenari pricing conversion (IDR micro-units → USD/1M)", () => {
 
   it("falls through to canonical MODEL_PRICING for a model absent from the kenari override", () => {
     // gpt-4o-mini is not in PROVIDER_PRICING.kenari but is in MODEL_PRICING —
-    // proves the documented fallback chain (override → canonical → pattern).
+    // proves the canonical (2nd) fallback tier.
     const pricing = getPricingForModel("kenari", "gpt-4o-mini");
     expect(pricing).not.toBeNull();
     expect(pricing).toEqual(MODEL_PRICING["gpt-4o-mini"]);
+  });
+
+  it("falls through to PATTERN_PRICING for a model absent from both the kenari override and MODEL_PRICING", () => {
+    // gemini-9-flash is not in PROVIDER_PRICING.kenari nor MODEL_PRICING, but
+    // matches the "gemini-*-flash" glob in PATTERN_PRICING — proves the
+    // pattern (3rd) fallback tier.
+    expect(getPricingForModel("kenari", "gemini-9-flash")).toEqual({
+      input: 0.3,
+      output: 2.5,
+      cached: 0.03,
+      reasoning: 3.75,
+      cache_creation: 0.3,
+    });
   });
 
   it("returns null for a synthetic model matching neither canonical nor pattern", () => {
