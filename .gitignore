@@ -91,3 +91,5 @@ graphify-out/*
 
 # Kiro local workspace state
 .kiro/
+# Todo/QA evidence artifacts - never committed (see .omo/plans/track-kenari-usage.md commit strategy)
+.qa-results/

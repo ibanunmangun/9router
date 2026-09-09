@@ -124,6 +124,7 @@ import p120 from "./fish-audio.js";
 import p121 from "./alitp-intl.js";
 import p122 from "./freebuff.js";
 import p124 from "./xquik.js";
+import p125 from "./kenari.js";
 
 export default [
   p0,
@@ -249,4 +250,5 @@ export default [
   p121,
   p122,
   p124,
+  p125,
 ];
