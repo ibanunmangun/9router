@@ -207,8 +207,10 @@ export default function QuotaTable({
 
               {/* Reset time — fixed width so the progress-bar track (flex-1) stays
                   the same size across rows in the same card, regardless of how
-                  long the countdown text is (e.g. "in 5h 0m" vs "in 29d 20h 24m") */}
-              <div className={`${compact ? "w-24" : "w-32"} min-w-0 shrink-0`}>
+                  long the countdown text is (e.g. "in 5h 0m" vs "in 29d 20h 24m").
+                  Right-aligned so a short countdown ("in 2m") hugs the hide-icon
+                  button instead of leaving a visible empty gap before it. */}
+              <div className={`${compact ? "w-24" : "w-32"} min-w-0 shrink-0 text-right`}>
                 {countdown !== "-" || resetDisplay ? (
                   compact ? (
                     <div
