@@ -1,3 +1,10 @@
+# v0.5.69.3 (2026-09-09)
+
+## Fixes
+- **Usage**: read Ollama Cloud's new `limits.monthly` quota field alongside the existing session/weekly fields, restoring quota bars for accounts Ollama migrated to monthly limits
+- **Dashboard**: fix Quota Tracker progress-bar width being squeezed/stretched by the variable-length reset countdown text; countdown now renders inline with the used/total row instead of as a separate flex column
+- **Providers**: replace the placeholder Kenari icon with a hand-rendered asset matching kenari.id's brand mark
+
 # v0.5.70 (2026-09-09)
 
 ## Features
