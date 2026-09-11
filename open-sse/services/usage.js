@@ -19,6 +19,7 @@ import { getFreebuffUsage } from "./usage/freebuff.js";
 import { getOpenCodeGoUsage } from "./usage/opencode-go.js";
 import { getGroqUsage } from "./usage/groq.js";
 import { getZedUsage } from "./usage/zed.js";
+import { getXiaomiMimoUsage } from "./usage/xiaomi-mimo.js";
 import { resolveQoderCredentials } from "./qoderModels.js";
 import { getGlmUsage } from "./usage/glm.js";
 import {
@@ -64,6 +65,7 @@ const USAGE_HANDLERS = {
   freebuff: (c) => getFreebuffUsage(c.accessToken, c.providerSpecificData, c.proxyOptions),
   groq: (c) => getGroqUsage(c.apiKey, c.proxyOptions),
   zed: (c) => getZedUsage(c.accessToken, c.providerSpecificData, c.proxyOptions),
+  "xiaomi-mimo": (c) => getXiaomiMimoUsage(c.accessToken, c.providerSpecificData, c.proxyOptions),
 };
 
 export async function getUsageForProvider(connection, proxyOptions = null, options = {}) {
