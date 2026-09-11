@@ -54,6 +54,27 @@ describe("buildPlaygroundRequest", () => {
     expect(chat).not.toHaveProperty("reasoning_effort");
   });
 
+  it("omits temperature and max tokens from a fresh studio config even when supported", () => {
+    const freshConfig = {
+      model,
+      messages: [{ role: "user", content: "Explain why the sky is blue." }],
+      systemPrompt: "Answer in two sentences.",
+    };
+
+    const body = buildPlaygroundRequest(freshConfig);
+
+    expect(body).toEqual({
+      model: "test-provider/test-model",
+      messages: [
+        { role: "system", content: "Answer in two sentences." },
+        { role: "user", content: "Explain why the sky is blue." },
+      ],
+      stream: true,
+    });
+    expect(body).not.toHaveProperty("temperature");
+    expect(body).not.toHaveProperty("max_tokens");
+  });
+
   it("omits default, invalid, and unsupported controls", () => {
     const body = buildPlaygroundRequest({
       ...sharedInput,
