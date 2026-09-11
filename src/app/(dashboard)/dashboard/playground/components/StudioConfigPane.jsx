@@ -136,42 +136,6 @@ export default function StudioConfigPane({ config, onChange, models, loading, er
             aria-label="System Prompt"
           />
         </div>
-
-        {/* Temperature */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <label className="text-xs font-medium text-text-main">Temperature</label>
-            <span className="text-xs text-text-muted font-mono">{config.temperature.toFixed(2)}</span>
-          </div>
-          <input
-            type="range"
-            min="0"
-            max="2"
-            step="0.01"
-            value={config.temperature}
-            onChange={(e) => handleChange("temperature", parseFloat(e.target.value))}
-            className="w-full accent-primary"
-            aria-label="Temperature"
-          />
-        </div>
-
-        {/* Max Tokens */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <label className="text-xs font-medium text-text-main">Max Tokens</label>
-            <span className="text-xs text-text-muted font-mono">{config.maxTokens}</span>
-          </div>
-          <input
-            type="range"
-            min="100"
-            max="8000"
-            step="100"
-            value={config.maxTokens}
-            onChange={(e) => handleChange("maxTokens", parseInt(e.target.value, 10))}
-            className="w-full accent-primary"
-            aria-label="Max Tokens"
-          />
-        </div>
       </div>
     </div>
   );

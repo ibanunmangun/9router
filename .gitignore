@@ -88,8 +88,22 @@ graphify-out/*
 .codegraph/
 .PR/
 .next-analyze/*
+.omo/
 
 # Kiro local workspace state
 .kiro/
 # Todo/QA evidence artifacts - never committed (see .omo/plans/track-kenari-usage.md commit strategy)
 .qa-results/
+
+9router-*
+
+# Local sensitive / temp files
+.engine-token.txt
+.tmp-prov.json
+.tmp-providers.json
+.oauth-session.json
+.dev-server.log
+.dev-server-err.log
+.start-dev.ps1
+start-dev-silent.cjs
+debug.log
