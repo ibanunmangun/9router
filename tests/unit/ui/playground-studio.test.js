@@ -747,4 +747,15 @@ describe('PlaygroundStudio Shell', () => {
 
     expect(screen.getByLabelText('System Prompt').value).toBe('Test prompt 123');
   });
+
+  test('does not render the inactive Temperature or Max Tokens controls while keeping Model and System Prompt', () => {
+    renderConfigPane();
+
+    expect(screen.queryByLabelText('Temperature')).toBeNull();
+    expect(screen.queryByLabelText('Max Tokens')).toBeNull();
+    expect(screen.queryByRole('slider')).toBeNull();
+
+    expect(screen.getByText('Model')).toBeDefined();
+    expect(screen.getByLabelText('System Prompt')).toBeDefined();
+  });
 });
