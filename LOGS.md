@@ -54,3 +54,37 @@
 - Note (non-blocking, flagged not fixed): a pre-existing `clientSecret` value in `tests/__baseline__/providers-baseline.json` predates this branch (confirmed via `git log -p`) and is unrelated to this work - flagged to the user for future consideration, not addressed this session
 - Temp files: ops scripts (`prelim_check.sh`, `backup_rollback.sh`, `postdeploy_verify.sh`) removed from nulla-lab `/tmp` after use; release tar/checksum retained on homelab+nulla-lab per runbook retention policy (not deleted)
 
+## 2026-09-09/10 - Kenari icon polish, Quota Tracker bar-width fix, Ollama monthly quota fix + fork release v0.5.69.3
+
+### PR #26 - Kenari icon fix
+- Added hand-rendered `public/providers/kenari.png` (128x128, matching kenari.id's favicon.svg mark: cream rounded-square bg `#FBF6EE`, bold black "k", brick-red `#B5362A` square accent).
+- Merged to master (`2538e143`), deployed to production as `9router:v0.5.69.3-local-2538e143`. Verified: volume preserved, caddy untouched, health 200.
+
+### PR #27 - Quota Tracker progress-bar width bug
+- Root cause (in `src/app/(dashboard)/dashboard/usage/components/ProviderLimits/QuotaTable.js`): the reset-time countdown text was a separate flex sibling with variable width, squeezing/stretching the adjacent progress-bar track depending on countdown string length.
+- Iterated 3 rounds to the real fix: folded the countdown text into the existing used/total+percentage row (already inside the bar's fixed-width `flex-1` container) instead of keeping it as a standalone column. Removed now-unused `resetPrimary`/`resetSecondary` vars. Display order set to `countdown . percentage` per follow-up style request.
+- Merged to master (`d57e9ef5`), deployed to production as `9router:v0.5.69.4-local-d57e9ef5`. Verified: volume preserved, caddy untouched, health 200.
+
+### PR #28 - Ollama Cloud quota display bug
+- Root cause: Ollama's `/api/usage` endpoint moved most accounts from `limits.session`/`limits.weekly` to a new `limits.monthly` field; the old parser silently dropped it, so quota bars stopped rendering for affected accounts. Confirmed live against real Ollama connections in the dev DB (5/6 accounts had valid `limits.monthly` data being dropped).
+- Fix (`open-sse/services/usage/misc.js`, `getOllamaUsage()`): added `monthlyRaw`/`monthlyNum`/`hasMonthly` handling and a `quotas["Monthly"]` entry, backward-compatible with the old session/weekly fields. `parseQuotaData` in `.../ProviderLimits/utils.js` needed no logic change (already generic), comment-only update.
+- Added `tests/unit/ollama-usage.test.js` coverage: monthly-only parsing, still-reports-no-limits-when-neither-shape-present, and `parseQuotaData` Monthly passthrough.
+- Official homelab test run (disposable `node:22-bookworm` container): 12/12 passed (`ollama-usage.test.js` + `provider-quota-visibility.test.js`, no regression to hide-quota feature).
+- Merged to master (`c699555e`), deployed to production as `9router:v0.5.69.5-local-c699555e`. Verified via internal Docker network (`caddy-9router` -> `9router:20128/api/health` = `{"ok":true}`, container has no published host port by design). Volume preserved, caddy untouched.
+
+### PR #29 - CHANGELOG entry (docs only)
+- Added the `v0.5.69.3` section to `CHANGELOG.md` summarizing the three fixes above. Merged to master (`a8a08773`) via PR (direct push to master is blocked by a repo ruleset).
+
+### Fork release
+- **New runbook added**: `docs/ops/NINEROUTER_FIX_RELEASE_RUNBOOK.md` for fix-only fork releases (no upstream sync involved) - `FORK_SYNC_RELEASE_RUNBOOK.md` assumes every release is an upstream sync, which didn't fit this session.
+- **GitHub release**: `fork-v0.5.69.3` published at https://github.com/ibanunmangun/9router/releases/tag/fork-v0.5.69.3, tag target = `master`@`a8a08773` (covers PR #26, #27, #28, #29).
+- Merged branches cleaned up from local + origin: `fix/ollama-monthly-quota-field`, `fix/quota-tracker-bar-width-inconsistency`, `fix/kenari-test-connection-and-live-models`, `docs/changelog-v0.5.69.3`.
+
+### State
+- master = `a8a08773` (local, origin in sync)
+- Production running: `9router:v0.5.69.5-local-c699555e` (code identical to `a8a08773`, docs-only commit on top doesn't require a rebuild)
+- Rollback chain available: `9router:v0.5.69.4-local-d57e9ef5-rollback-20260909230411` (compose bak same timestamp), plus older rollback tags from prior deploys, all still retained on nulla-lab
+- DEV (`ninerouter-dev` on homelab) updated to the PR #28 build before merge (image `sha256:ff11b4a6...`); production later caught up to the same commit after merge
+- Reminder carried over (non-blocking, still not addressed): pre-existing `clientSecret` value in `tests/__baseline__/providers-baseline.json`, unrelated to any branch touched this session
+- Temp files cleaned: build logs, test workspace, and transferred image tarball removed from homelab + nulla-lab `/tmp` after use
+
