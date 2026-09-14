@@ -103,7 +103,10 @@ export const ROUTING_SCENARIO_REASON_CODES = Object.freeze({
 
 /** Returns the frozen sanitized reason for an observable routing scenario. */
 export function getRoutingReasonCode(scenario) {
-  const reasonCode = ROUTING_SCENARIO_REASON_CODES[scenario];
+  if (typeof scenario !== "string") throw new TypeError("Unsupported routing scenario");
+  const reasonCode = Object.hasOwn(ROUTING_SCENARIO_REASON_CODES, scenario)
+    ? ROUTING_SCENARIO_REASON_CODES[scenario]
+    : undefined;
   if (!reasonCode) throw new TypeError(`Unsupported routing scenario: ${scenario}`);
   return reasonCode;
 }
@@ -194,7 +197,8 @@ function toCrockford(bytes, length) {
  * reproduces an ID for tests/imports; omitted seeds use cryptographic entropy.
  */
 export function createRoutingId(kind, seed = randomUUID()) {
-  const prefix = ID_PREFIXES[kind];
+  if (typeof kind !== "string") throw new TypeError("Unsupported routing ID kind");
+  const prefix = Object.hasOwn(ID_PREFIXES, kind) ? ID_PREFIXES[kind] : undefined;
   if (!prefix) throw new TypeError(`Unsupported routing ID kind: ${kind}`);
   return `${prefix}_${toCrockford(digest(`${ROUTING_CONTRACT_VERSION}:${kind}:${seed}`), 26)}`;
 }
@@ -312,9 +316,11 @@ export function validateRouteDecisionProjection(projection, { privacySalt } = {}
   assertOutcomeReason(projection.terminalOutcome, projection.reasonCode, "projection terminal");
   assertPlainDataArray(projection.attempts, "projection.attempts");
 
-  const attempts = Object.freeze(
-    projection.attempts.map((attempt, index) => buildAttemptProjection(attempt, index, privacySalt)),
-  );
+  const attemptProjections = [];
+  for (let index = 0; index < projection.attempts.length; index += 1) {
+    attemptProjections.push(buildAttemptProjection(projection.attempts[index], index, privacySalt));
+  }
+  const attempts = Object.freeze(attemptProjections);
   return Object.freeze({
     schemaVersion: ROUTING_CONTRACT_VERSION,
     requestId: projection.requestId,

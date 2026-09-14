@@ -73,6 +73,30 @@ describe("secure routing identity boundary", () => {
     expect(`${connectionRef}${proxyBucketRef}`).not.toContain("synthetic-pool-a");
     expect(proxyBucketRef).not.toBe(RAW_PROXY_BUCKET);
   });
+
+  it.each(["constructor", "toString", "hasOwnProperty"])(
+    "rejects inherited routing ID kind %s",
+    (kind) => {
+      expect(() => createRoutingId(kind, "stable-seed")).toThrow(
+        new TypeError(`Unsupported routing ID kind: ${kind}`),
+      );
+    },
+  );
+
+  it("rejects coercion objects before routing ID kind lookup", () => {
+    let coercionCount = 0;
+    const kind = {
+      [Symbol.toPrimitive]() {
+        coercionCount += 1;
+        return coercionCount === 1 ? "request" : "constructor";
+      },
+    };
+
+    expect(() => createRoutingId(kind, "stable-seed")).toThrow(
+      new TypeError("Unsupported routing ID kind"),
+    );
+    expect(coercionCount).toBe(0);
+  });
 });
 
 describe("secure routing observable scenarios", () => {
@@ -91,6 +115,30 @@ describe("secure routing observable scenarios", () => {
     ["observability dropped", "observabilityDropped", "observability.dropped"],
   ])("maps %s to %s", (_label, scenario, expectedReason) => {
     expect(getRoutingReasonCode(scenario)).toBe(expectedReason);
+  });
+
+  it.each(["constructor", "toString", "hasOwnProperty"])(
+    "rejects inherited routing scenario %s",
+    (scenario) => {
+      expect(() => getRoutingReasonCode(scenario)).toThrow(
+        new TypeError(`Unsupported routing scenario: ${scenario}`),
+      );
+    },
+  );
+
+  it("rejects coercion objects before routing scenario lookup", () => {
+    let coercionCount = 0;
+    const scenario = {
+      [Symbol.toPrimitive]() {
+        coercionCount += 1;
+        return coercionCount === 1 ? "requestAccepted" : "constructor";
+      },
+    };
+
+    expect(() => getRoutingReasonCode(scenario)).toThrow(
+      new TypeError("Unsupported routing scenario"),
+    );
+    expect(coercionCount).toBe(0);
   });
 
   it.each([
@@ -196,6 +244,30 @@ describe("secure route-decision projection", () => {
     expect(() => validateRouteDecisionProjection(invalidState, { privacySalt: PRIVACY_SALT })).toThrow(/quotaState/i);
     expect(() => validateRouteDecisionProjection(createValidInput())).toThrow(/privacySalt/i);
     expect(() => validateRouteDecisionProjection({ ...createValidInput(), token: "synthetic-sensitive-value" }, { privacySalt: PRIVACY_SALT })).toThrow(/not allowed/i);
+  });
+
+  it("does not invoke a caller-controlled attempts map method", () => {
+    const input = createValidInput();
+    const attackerPayload = {
+      token: "synthetic-sensitive-value",
+      rawConnectionId: RAW_CONNECTION_ID,
+    };
+    let attackerMapInvoked = false;
+    input.attempts.map = () => {
+      attackerMapInvoked = true;
+      return [attackerPayload];
+    };
+
+    const projection = validateRouteDecisionProjection(
+      input,
+      { privacySalt: PRIVACY_SALT },
+    );
+
+    expect(attackerMapInvoked).toBe(false);
+    expect(projection.attempts).toHaveLength(1);
+    expect(projection.attempts[0]).not.toBe(attackerPayload);
+    expect(JSON.stringify(projection)).not.toContain(attackerPayload.token);
+    expect(JSON.stringify(projection)).not.toContain(RAW_CONNECTION_ID);
   });
 
   it("rejects custom serialization and accessor inputs before reading values", () => {
