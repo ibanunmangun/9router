@@ -9,11 +9,6 @@ tests/translator/claude-kiro-direct.test.js :: Claude → Kiro (direct route) ma
 tests/translator/claude-kiro-direct.test.js :: Claude → Kiro (direct route) normalizes an unsupported Kiro intensity suffix while preserving agentic behavior
 tests/translator/claude-kiro-direct.test.js :: Claude → Kiro (direct route) sends Claude system as top-level systemPrompt and keeps a user-content fallback
 tests/translator/golden-request.test.js :: GOLDEN request: OpenAI → Kiro full body (image base64 + tool_result)
-tests/translator/golden-url-header.test.js :: GOLDEN buildHeaders (default executor providers) anthropic → headers (apiKey / oauth)
-tests/translator/golden-url-header.test.js :: GOLDEN buildHeaders (default executor providers) cline → headers (apiKey / oauth)
-tests/translator/golden-url-header.test.js :: GOLDEN buildHeaders (default executor providers) clinepass → headers (apiKey / oauth)
-tests/translator/golden-url-header.test.js :: GOLDEN buildHeaders (default executor providers) kimi → headers (apiKey / oauth)
-tests/translator/golden-url-header.test.js :: GOLDEN buildUrl (default executor providers) blackbox → url (stream + non-stream)
 tests/unit/claude-header-forwarding.test.js :: proxyAwareFetch — api.anthropic.com routing routes api.anthropic.com to gotScraping (non-streaming) and returns ok response
 tests/unit/codex-image-fetch.test.js :: CodexExecutor image handling execute() prefetches images before sending to upstream
 tests/unit/codex-image-fetch.test.js :: CodexExecutor image handling fetches 1MB remote image and inlines it as base64 data URI
@@ -22,6 +17,18 @@ tests/unit/combo-autoswitch.test.js :: reorderByCapabilities keeps order when no
 tests/unit/combo-fusion.test.js :: fusion combo fans out to the panel then routes a synthesis turn to the judge
 tests/unit/combo-fusion.test.js :: fusion combo flattens Anthropic-style tool_use and tool_result blocks in arrays
 tests/unit/combo-fusion.test.js :: fusion combo flattens previous tool history and assistant tool_calls into prose for panel calls
+tests/unit/cursor-agent-proto.test.js :: Cursor AgentService codec (cursorProtobuf.js) McpArgs decode decodes name, toolName, toolCallId, and typed args map
+tests/unit/cursor-agent-proto.test.js :: Cursor AgentService codec (cursorProtobuf.js) McpArgs decode handles empty args map
+tests/unit/cursor-agent-proto.test.js :: Cursor AgentService codec (cursorProtobuf.js) McpResult error / toolNotFound builds error result (field 2)
+tests/unit/cursor-agent-proto.test.js :: Cursor AgentService codec (cursorProtobuf.js) McpResult error / toolNotFound builds toolNotFound result (field 5)
+tests/unit/cursor-agent-proto.test.js :: Cursor AgentService codec (cursorProtobuf.js) McpResult image content builds image item with raw bytes + mime type
+tests/unit/cursor-agent-proto.test.js :: Cursor AgentService codec (cursorProtobuf.js) McpResult image content builds mixed text + image content
+tests/unit/cursor-agent-proto.test.js :: Cursor AgentService codec (cursorProtobuf.js) McpResult success builds success with multiple text items
+tests/unit/cursor-agent-proto.test.js :: Cursor AgentService codec (cursorProtobuf.js) McpResult success builds success with single text content
+tests/unit/cursor-agent-proto.test.js :: Cursor AgentService codec (cursorProtobuf.js) McpResult success marks is_error=true
+tests/unit/cursor-agent-proto.test.js :: Cursor AgentService codec (cursorProtobuf.js) McpToolDefinition accepts flat tool shape (no .function wrapper)
+tests/unit/cursor-agent-proto.test.js :: Cursor AgentService codec (cursorProtobuf.js) McpToolDefinition encodes name, description, input_schema (Value), provider, tool_name
+tests/unit/cursor-agent-proto.test.js :: Cursor AgentService codec (cursorProtobuf.js) McpToolDefinition preserves nested JSON-schema types
 tests/unit/cursor-agent-proto.test.js :: Cursor AgentService codec (cursorProtobuf.js) encodeMcpTools produces empty bytes for no tools
 tests/unit/cursor-agent-proto.test.js :: Cursor AgentService codec (cursorProtobuf.js) encodeMcpTools wraps multiple tool defs as repeated field 1
 tests/unit/cursor-agent-proto.test.js :: Cursor AgentService codec (cursorProtobuf.js) google.protobuf.Value round-trip encodes/decodes array of mixed
@@ -35,18 +42,6 @@ tests/unit/cursor-agent-proto.test.js :: Cursor AgentService codec (cursorProtob
 tests/unit/cursor-agent-proto.test.js :: Cursor AgentService codec (cursorProtobuf.js) google.protobuf.Value round-trip encodes/decodes nested object
 tests/unit/cursor-agent-proto.test.js :: Cursor AgentService codec (cursorProtobuf.js) google.protobuf.Value round-trip encodes/decodes null
 tests/unit/cursor-agent-proto.test.js :: Cursor AgentService codec (cursorProtobuf.js) google.protobuf.Value round-trip encodes/decodes string
-tests/unit/cursor-agent-proto.test.js :: Cursor AgentService codec (cursorProtobuf.js) McpArgs decode decodes name, toolName, toolCallId, and typed args map
-tests/unit/cursor-agent-proto.test.js :: Cursor AgentService codec (cursorProtobuf.js) McpArgs decode handles empty args map
-tests/unit/cursor-agent-proto.test.js :: Cursor AgentService codec (cursorProtobuf.js) McpResult error / toolNotFound builds error result (field 2)
-tests/unit/cursor-agent-proto.test.js :: Cursor AgentService codec (cursorProtobuf.js) McpResult error / toolNotFound builds toolNotFound result (field 5)
-tests/unit/cursor-agent-proto.test.js :: Cursor AgentService codec (cursorProtobuf.js) McpResult image content builds image item with raw bytes + mime type
-tests/unit/cursor-agent-proto.test.js :: Cursor AgentService codec (cursorProtobuf.js) McpResult image content builds mixed text + image content
-tests/unit/cursor-agent-proto.test.js :: Cursor AgentService codec (cursorProtobuf.js) McpResult success builds success with multiple text items
-tests/unit/cursor-agent-proto.test.js :: Cursor AgentService codec (cursorProtobuf.js) McpResult success builds success with single text content
-tests/unit/cursor-agent-proto.test.js :: Cursor AgentService codec (cursorProtobuf.js) McpResult success marks is_error=true
-tests/unit/cursor-agent-proto.test.js :: Cursor AgentService codec (cursorProtobuf.js) McpToolDefinition accepts flat tool shape (no .function wrapper)
-tests/unit/cursor-agent-proto.test.js :: Cursor AgentService codec (cursorProtobuf.js) McpToolDefinition encodes name, description, input_schema (Value), provider, tool_name
-tests/unit/cursor-agent-proto.test.js :: Cursor AgentService codec (cursorProtobuf.js) McpToolDefinition preserves nested JSON-schema types
 tests/unit/cursor-agent-proto.test.js :: Cursor AgentService executor helpers (cursor.js) buildAgentRunFrame encodes a text-only run request with system + model
 tests/unit/cursor-agent-proto.test.js :: Cursor AgentService executor helpers (cursor.js) buildAgentRunFrame encodes conversation_history from prior turns including tool calls/results
 tests/unit/cursor-agent-proto.test.js :: Cursor AgentService executor helpers (cursor.js) buildAgentRunFrame encodes mcp_tools (field 4) when tools are provided
@@ -65,6 +60,7 @@ tests/unit/executor-const-guard.test.js :: antigravity retry (intentional change
 tests/unit/fetch-success-clears-account.test.js :: web fetch account state clears a stale provider lock after a successful fetch
 tests/unit/force-stream-config.test.js :: forceStream provider config keeps forced-stream providers streaming for JSON clients when body.stream is false
 tests/unit/force-stream-config.test.js :: forceStream provider config keeps forced-stream providers streaming for JSON clients when body.stream is undefined
+tests/unit/kiro-external-idp.test.js :: Kiro external_idp (CLIProxyAPI) import and refresh adds CodeWhisperer external IdP headers and endpoint ordering
 tests/unit/kiro-terminal-integrity.test.js :: Kiro terminal integrity recovery bounds the retry HTTP error body
 tests/unit/kiro-terminal-integrity.test.js :: Kiro terminal integrity recovery surfaces retry HTTP failures as SSE after heartbeat commits headers
 tests/unit/mimo-free.live.test.js :: MiMo Free anti-abuse gate (live) chat WITH Chrome User-Agent → 200
@@ -79,12 +75,12 @@ tests/unit/oauth-cursor-auto-import.test.js :: GET /api/oauth/cursor/auto-import
 tests/unit/openai-to-claude.test.js :: openaiToClaudeResponse omits empty Read pages tool argument before emitting Claude input deltas
 tests/unit/openai-to-kiro.test.js :: openaiToKiroRequest thinking budget clamps OpenAI Responses reasoning.effort xhigh to max_thinking_length 32000
 tests/unit/openai-to-kiro.test.js :: openaiToKiroRequest thinking budget clamps reasoning_effort max to Kiro max_thinking_length 32000
+tests/unit/openai-to-kiro.test.js :: openaiToKiroRequest thinking budget does not send Claude-specific additionalModelRequestFields for non-Claude aliases
+tests/unit/openai-to-kiro.test.js :: openaiToKiroRequest thinking budget does not send Claude-specific additionalModelRequestFields for prefixed non-Claude aliases
 tests/unit/openai-to-kiro.test.js :: openaiToKiroRequest thinking budget does not send additionalModelRequestFields for date-suffixed Claude 4 model ids
 tests/unit/openai-to-kiro.test.js :: openaiToKiroRequest thinking budget does not send additionalModelRequestFields for legacy Kiro model ids
 tests/unit/openai-to-kiro.test.js :: openaiToKiroRequest thinking budget does not send additionalModelRequestFields for pre-4 legacy Kiro model ids
 tests/unit/openai-to-kiro.test.js :: openaiToKiroRequest thinking budget does not send additionalModelRequestFields for prefixed pre-4 legacy Kiro model ids
-tests/unit/openai-to-kiro.test.js :: openaiToKiroRequest thinking budget does not send Claude-specific additionalModelRequestFields for non-Claude aliases
-tests/unit/openai-to-kiro.test.js :: openaiToKiroRequest thinking budget does not send Claude-specific additionalModelRequestFields for prefixed non-Claude aliases
 tests/unit/openai-to-kiro.test.js :: openaiToKiroRequest thinking budget keeps the legacy thinking fallback for unsupported GPT-5.6 effort auto
 tests/unit/openai-to-kiro.test.js :: openaiToKiroRequest thinking budget keeps the legacy thinking fallback for unsupported GPT-5.6 effort minimal
 tests/unit/openai-to-kiro.test.js :: openaiToKiroRequest thinking budget keeps the legacy thinking fallback for unsupported GPT-5.6 effort ultra
@@ -96,8 +92,6 @@ tests/unit/openai-to-kiro.test.js :: openaiToKiroRequest thinking budget normali
 tests/unit/openai-to-kiro.test.js :: openaiToKiroRequest thinking budget normalizes unsupported Kiro intensity suffix for glm-5-thinking-agentic(medium)
 tests/unit/openai-to-kiro.test.js :: openaiToKiroRequest thinking budget uses Claude thinking.budget_tokens as max_thinking_length
 tests/unit/openai-to-kiro.test.js :: openaiToKiroRequest thinking budget uses the default budget for synthetic -thinking models with no explicit config
-tests/unit/request-details-tab.test.js :: getDistinctProviders — providers route (no full-row parse) returns unique provider list without parsing data blobs
-tests/unit/request-details-tab.test.js :: request details — tab crash-risk cases oversized field → stored truncated + reparseable (no circular)
 tests/unit/security-audit.test.js :: AUDIT-001: Synchronous restart guard mitmIsRestarting should be reset on max-restarts early return
 tests/unit/security-audit.test.js :: AUDIT-001: Synchronous restart guard mitmIsRestarting should be set before first await expression
 tests/unit/security-audit.test.js :: AUDIT-002: API key masking byApiKey object keys should use masked key, not raw key
@@ -116,6 +110,6 @@ tests/unit/translator-request-normalization.test.js :: request normalization cla
 tests/unit/translator-request-normalization.test.js :: request normalization filterToOpenAIFormat flattens text-only arrays to string
 tests/unit/translator-request-normalization.test.js :: request normalization parseSSELine supports provider raw NDJSON stream lines
 tests/unit/translator-request-normalization.test.js :: request normalization translateRequest keeps /v1/messages Claude->OpenAI text payloads string-safe
+tests/unit/windsurf-executor.test.js :: WindsurfExecutor class PROVIDERS.windsurf baseUrl is the chat endpoint (registry in sync)
 tests/unit/windsurf-executor.test.js :: WindsurfExecutor class buildUrl returns the GetChatMessage endpoint
 tests/unit/windsurf-executor.test.js :: WindsurfExecutor class constructor wires config from PROVIDERS.windsurf
-tests/unit/windsurf-executor.test.js :: WindsurfExecutor class PROVIDERS.windsurf baseUrl is the chat endpoint (registry in sync)
