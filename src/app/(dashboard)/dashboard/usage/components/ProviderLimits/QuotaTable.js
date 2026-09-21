@@ -149,7 +149,10 @@ export default function QuotaTable({
       <div className="space-y-px">
         {currentPageRows.map((quota) => {
           const isUnlimited = quota.unlimited === true;
-          const colors = getColorClasses(quota.remaining);
+          const isCreditBalance = quota.isCreditBalance === true;
+          const colors = isCreditBalance
+            ? { text: "text-blue-600 dark:text-blue-400", bg: "bg-blue-500", bgLight: "bg-blue-500/10", emoji: "💰" }
+            : getColorClasses(quota.remaining);
           const countdown = formatResetTime(quota.resetAt);
           const resetDisplay = formatResetTimeDisplay(quota.resetAt);
           // recurring defaults true: a missing flag means the quota
@@ -173,7 +176,7 @@ export default function QuotaTable({
 
               {/* Progress + used/total */}
               <div className={`min-w-0 flex-1 ${compact ? "space-y-1" : "space-y-1.5"}`}>
-                {!isUnlimited && (
+                {!isUnlimited && !isCreditBalance && (
                 <div className={`${compact ? "h-1" : "h-1.5"} rounded-full overflow-hidden border ${colors.bgLight} ${
                   quota.remaining === 0 ? "border-black/10 dark:border-white/10" : "border-transparent"
                 }`}>
@@ -190,27 +193,22 @@ export default function QuotaTable({
                     title={
                       isUnlimited
                         ? `${quota.used.toLocaleString()} used · Unlimited`
+                        : isCreditBalance
+                        ? `Credit balance: ${quota.total.toFixed(2)} ${quota.currency || ""}`
                         : `${quota.used.toLocaleString()} / ${quota.total > 0 ? quota.total.toLocaleString() : "∞"}`
                     }
                   >
                     {isUnlimited
                       ? `${quota.used.toLocaleString()} used · Unlimited`
+                      : isCreditBalance
+                      ? `Credit: ${quota.total.toFixed(2)} ${quota.currency || ""}`
                       : `${quota.used.toLocaleString()} / ${quota.total > 0 ? quota.total.toLocaleString() : "∞"}`}
                   </span>
-                  {/* Percentage + reset countdown live together on the right,
-                      inside this same flex-1 container as the bar above. This
-                      is the fix for bars rendering at inconsistent track
-                      widths across rows: a reset-time column that used to
-                      sit OUTSIDE the bar's flex-1 container (as a separate
-                      flex sibling) had a width that varied with countdown
-                      text length ("in 5h 0m" vs "in 29d 20h 24m"), which
-                      squeezed or widened the bar's track differently per row.
-                      Folding the countdown text into this row keeps the bar's
-                      track width determined only by the fixed-width name and
-                      icon columns, so it's identical across every row in a
-                      card regardless of what the countdown text says. */}
+{/* Percentage + reset countdown live together on the right, inside this same
+                      flex-1 container as the bar above. Keeping them together prevents
+                      variable countdown widths from changing the bar track per row. */}
                   <span className="flex items-center gap-1 min-w-0 shrink-0">
-                    {!isUnlimited && (countdown !== "-" || resetDisplay) && (
+                    {!isUnlimited && !isCreditBalance && (countdown !== "-" || resetDisplay) && (
                       <span
                         className="text-text-muted truncate"
                         title={resetDisplay || ""}
@@ -218,8 +216,8 @@ export default function QuotaTable({
                         {countdown !== "-" ? countdownLabel : resetDisplay} ·
                       </span>
                     )}
-                    <span className={`font-medium ${isUnlimited ? "text-green-600 dark:text-green-400" : colors.text}`}>
-                      {isUnlimited ? "Unlimited" : `${quota.remaining}%`}
+                    <span className={`font-medium ${isUnlimited ? "text-green-600 dark:text-green-400" : isCreditBalance ? "text-blue-600 dark:text-blue-400" : colors.text}`}>
+                      {isUnlimited ? "Unlimited" : isCreditBalance ? "" : `${quota.remaining}%`}
                     </span>
                   </span>
                 </div>
