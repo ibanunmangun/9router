@@ -80,7 +80,7 @@ function completeToolCalls(payload) {
   for (const [position, block] of (payload?.content || []).entries()) add("claude", block, null, position);
   for (const [position, item] of (payload?.output || []).entries()) add("responses", item, null, position);
   for (const [position, item] of (payload?.response?.output || []).entries()) add("responses", item, null, position);
-  add("responses", payload?.item, payload.output_index);
+  add("responses", payload?.item, payload?.output_index);
   return calls;
 }
 

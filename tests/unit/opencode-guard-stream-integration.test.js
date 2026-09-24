@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("../../src/lib/usageDb.js", () => ({
+  trackPendingRequest: vi.fn(async () => {}),
   appendRequestLog: vi.fn(async () => {}),
   saveRequestDetail: vi.fn(async () => {}),
   saveRequestUsage: vi.fn(async () => {}),

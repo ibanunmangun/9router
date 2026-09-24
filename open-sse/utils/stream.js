@@ -560,8 +560,9 @@ export function createSSEStream(options = {}) {
           const payload = parseSSELine(trimmed, targetFormat);
           if (!payload) return;
           if (payload.done && targetFormat !== FORMATS.OLLAMA) {
-            if ((ensureOpenAIDone || openAIResponsesStreamSeen) && !openAIResponsesTerminalSeen) emitIncompleteResponsesFailure(controller);
-            if (ensureOpenAIDone && !streamDoneSent) queueGuardedOutput(controller, "data: [DONE]\n\n");
+            const keepsOpenAIResponsesFormat = targetFormat === FORMATS.OPENAI_RESPONSES && sourceFormat === FORMATS.OPENAI_RESPONSES;
+            if ((keepsOpenAIResponsesFormat || openAIResponsesStreamSeen) && !openAIResponsesTerminalSeen) emitIncompleteResponsesFailure(controller);
+            if ((ensureOpenAIDone || keepsOpenAIResponsesFormat) && !streamDoneSent) queueGuardedOutput(controller, "data: [DONE]\n\n");
             markDoneSent();
             return;
           }
@@ -583,11 +584,24 @@ export function createSSEStream(options = {}) {
           }
           const extracted = extractUsage(payload);
           if (extracted) state.usage = mergeUsage(state.usage, extracted);
-          const openAIResponsesEventName = targetFormat === FORMATS.OPENAI_RESPONSES
+          const isOpenAIResponsesStream = targetFormat === FORMATS.OPENAI_RESPONSES;
+          const keepsOpenAIResponsesFormat = isOpenAIResponsesStream && sourceFormat === FORMATS.OPENAI_RESPONSES;
+          const openAIResponsesEventName = isOpenAIResponsesStream
             ? getOpenAIResponsesEventName(currentOpenAIResponsesEvent, payload)
             : null;
-          if (targetFormat === FORMATS.OPENAI_RESPONSES) captureSemanticFailure(openAIResponsesEventName, payload);
-          if (targetFormat === FORMATS.OPENAI_RESPONSES) markResponsesTerminal(openAIResponsesEventName, payload);
+          if (isOpenAIResponsesStream) captureSemanticFailure(openAIResponsesEventName, payload);
+          if (isOpenAIResponsesStream) markResponsesTerminal(openAIResponsesEventName, payload);
+
+          // Responses same-format passthrough: re-emit with original event framing
+          // instead of round-tripping through the OpenAI-pivot translator.
+          if (keepsOpenAIResponsesFormat && openAIResponsesEventName) {
+            const output = formatSSE({ event: openAIResponsesEventName, data: payload }, sourceFormat);
+            queueGuardedOutput(controller, output);
+            currentOpenAIResponsesEvent = null;
+            sseEmittedCount++;
+            return;
+          }
+
           let translated;
           try {
             translated = translateResponse(targetFormat, sourceFormat, payload, state);
