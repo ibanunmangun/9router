@@ -20,6 +20,7 @@ import { handleNonStreamingResponse } from "./chatCore/nonStreamingHandler.js";
 import { handleStreamingResponse, buildOnStreamComplete } from "./chatCore/streamingHandler.js";
 import { detectClientTool, isNativePassthrough } from "../utils/clientDetector.js";
 import { dedupeTools } from "../utils/toolDeduper.js";
+import { takeFingerprintMetadata } from "../utils/opencodeFingerprint.js";
 import { injectCaveman } from "../rtk/caveman.js";
 import { injectPonytail } from "../rtk/ponytail.js";
 import { compressMessages, formatRtkLog } from "../rtk/index.js";
@@ -115,6 +116,19 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
       body = { ...body, reasoning_effort: mode };
     }
   }
+
+  // Per-request opt-out: client can bypass all token savers via header
+  const tokenSaverEnabled = clientRawRequest?.headers?.[TOKEN_SAVER_HEADER]?.toLowerCase() !== "off";
+
+  // Cursor's translator rewrites tool_result into user text, so RTK must run on
+  // the source body before translation. Every other pair translates the tool
+  // shapes 1:1 — keep the post-translate pass there so those providers are
+  // untouched (and a retry never re-compresses an already-compressed body).
+  const preTranslateRtk = provider === "cursor"
+    ? compressMessages(body, tokenSaverEnabled && rtkEnabled)
+    : null;
+  const preTranslateRtkLine = formatRtkLog(preTranslateRtk);
+  if (preTranslateRtkLine) console.log(preTranslateRtkLine);
 
   const clientRequestedStreaming = body.stream === true || sourceFormat === FORMATS.ANTIGRAVITY || sourceFormat === FORMATS.GEMINI || sourceFormat === FORMATS.GEMINI_CLI;
   const providerRequiresStreaming = PROVIDERS[provider]?.forceStream === true;
@@ -252,13 +266,8 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
     translatedBody.tools = defaultClaudeToolType(translatedBody.tools);
   }
 
-  // Per-request opt-out: client can bypass all token savers via header
-  const tokenSaverEnabled = clientRawRequest?.headers?.[TOKEN_SAVER_HEADER]?.toLowerCase() !== "off";
-
-  // RTK: compress tool_result content
-  const rtkStats = compressMessages(translatedBody, tokenSaverEnabled && rtkEnabled);
-  const rtkLine = formatRtkLog(rtkStats);
-  if (rtkLine) console.log(rtkLine);
+  // RTK: compress tool_result content. Skipped when already done pre-translate.
+  const rtkStats = preTranslateRtk || compressMessages(translatedBody, tokenSaverEnabled && rtkEnabled);
 
   // Headroom: optional external proxy compression; fail open if proxy is absent.
   const headroomDiagnostics = {};
@@ -274,6 +283,8 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
 
   // Token-saver flags accumulator for the single "⚙" log line below.
   const xf = [];
+
+  if (rtkStats?.hits?.length) xf.push(`RTK:${rtkStats.hits.length}`);
 
   // Caveman: inject terse-style system prompt
   if (tokenSaverEnabled && cavemanEnabled && cavemanLevel) {
@@ -368,7 +379,7 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
   }
 
   // Execute request
-  let providerResponse, providerUrl, providerHeaders, finalBody;
+  let providerResponse, providerUrl, providerHeaders, finalBody, toolResponseMetadata = null;
   // Most executors return their registry format. Cursor AgentService is an
   // exception: it is decoded by the executor into OpenAI-compatible output.
   let providerResponseFormat = targetFormat;
@@ -389,6 +400,13 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
     providerHeaders = result.headers;
     finalBody = result.transformedBody;
     providerResponseFormat = result.responseFormat || targetFormat;
+    const fingerprintMeta = takeFingerprintMetadata(translatedBody);
+    if (fingerprintMeta?.renameMap?.size) {
+      toolNameMap = new Map([...(toolNameMap || []), ...fingerprintMeta.renameMap]);
+    }
+    toolResponseMetadata = fingerprintMeta
+      ? { renameMap: toolNameMap || fingerprintMeta.renameMap, injectedNames: fingerprintMeta.injectedNames }
+      : null;
     reqLogger.logTargetRequest(providerUrl, providerHeaders, finalBody);
   } catch (error) {
     trackPendingRequest(model, provider, connectionId, false, true);
@@ -465,7 +483,15 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
           if (retryResult.response.ok) {
             providerResponse = retryResult.response;
             providerUrl = retryResult.url;
+            finalBody = retryResult.transformedBody;
             providerResponseFormat = retryResult.responseFormat || targetFormat;
+            const fingerprintMeta = takeFingerprintMetadata(translatedBody);
+            if (fingerprintMeta) {
+              toolResponseMetadata = {
+                renameMap: toolNameMap || fingerprintMeta.renameMap,
+                injectedNames: fingerprintMeta.injectedNames,
+              };
+            }
           }
         } catch { log?.warn?.("TOKEN", `${provider.toUpperCase()} | retry after refresh failed`); }
       } else {
@@ -498,36 +524,52 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
       log.errorLine(reqTag, "✗", `ERROR ${statusCode} · ${provider}/${model} · ${Date.now() - requestStartTime}ms${urlStr}\n    ${errMsg}`);
     }
     reqLogger.logError(new Error(message), finalBody || translatedBody);
-    const nonOkOrigin = statusCode === 408 || statusCode >= 500 ? "upstream_http" : "local_router";
-    onResilienceEvent?.("DISPATCH_FAILED", { provider, model, connectionId, status: statusCode, origin: nonOkOrigin });
+    onResilienceEvent?.("DISPATCH_FAILED", { provider, model, connectionId, status: statusCode, origin: "upstream_http" });
     return createErrorResult(statusCode, errMsg, resetsAtMs);
   }
 
   const sharedCtx = { provider, model, body, stream, translatedBody, finalBody, requestStartTime, connectionId, apiKey, clientRawRequest, onRequestSuccess, onResilienceEvent, pxpipe: pxpipeSummary, reqTag, log };
   const appendLog = (extra) => appendRequestLog({ model, provider, connectionId, ...extra }).catch(() => { });
   const trackDone = () => trackPendingRequest(model, provider, connectionId, false);
+  const notifyRequestSuccess = async () => {
+    try { await onRequestSuccess?.(); }
+    catch (error) { log?.warn?.("AUTH", `onRequestSuccess failed: ${error?.message || error}`); }
+  };
 
   // Provider forced streaming but client wants JSON
   if (!clientRequestedStreaming && providerRequiresStreaming) {
-    const result = await handleForcedSSEToJson({ ...sharedCtx, providerResponse, sourceFormat, targetFormat: providerResponseFormat, customToolNames, trackDone, appendLog });
+    const result = await handleForcedSSEToJson({ ...sharedCtx, providerResponse, sourceFormat, targetFormat: providerResponseFormat, customToolNames, toolNameMap: toolResponseMetadata || toolNameMap, trackDone, appendLog });
     if (result) {
-      onResilienceEvent?.("NON_STREAM_COMPLETED", { provider, model, connectionId });
-      streamController.handleComplete();
+      if (result.success) {
+        await notifyRequestSuccess();
+        onResilienceEvent?.("NON_STREAM_COMPLETED", { provider, model, connectionId });
+        streamController.handleComplete();
+      } else {
+        onResilienceEvent?.("DISPATCH_FAILED", { provider, model, connectionId, status: result.response?.status || HTTP_STATUS.BAD_GATEWAY, origin: result.origin || "processing" });
+        streamController.handleError(new Error(result.error || "Non-stream response failed"));
+      }
       return result;
     }
   }
 
   // True non-streaming response
   if (!stream) {
-    const result = await handleNonStreamingResponse({ ...sharedCtx, providerResponse, sourceFormat, targetFormat: providerResponseFormat, reqLogger, toolNameMap, customToolNames, trackDone, appendLog });
-    onResilienceEvent?.("NON_STREAM_COMPLETED", { provider, model, connectionId });
-    streamController.handleComplete();
+    const result = await handleNonStreamingResponse({ ...sharedCtx, providerResponse, sourceFormat, targetFormat: providerResponseFormat, reqLogger, toolNameMap: toolResponseMetadata || toolNameMap, customToolNames, trackDone, appendLog });
+    if (result.success) {
+      await notifyRequestSuccess();
+      onResilienceEvent?.("NON_STREAM_COMPLETED", { provider, model, connectionId });
+      streamController.handleComplete();
+    } else {
+      onResilienceEvent?.("DISPATCH_FAILED", { provider, model, connectionId, status: result.response?.status || HTTP_STATUS.BAD_GATEWAY, origin: result.origin || "processing" });
+      streamController.handleError(new Error(result.error || "Non-stream response failed"));
+    }
     return result;
   }
 
   // Streaming response
   const { onStreamComplete, streamDetailId } = buildOnStreamComplete({ ...sharedCtx });
-  return handleStreamingResponse({ ...sharedCtx, providerResponse, sourceFormat, targetFormat: providerResponseFormat, userAgent, reqLogger, toolNameMap, customToolNames, streamController, onStreamComplete, streamDetailId, ensureOpenAIDone, credentials });
+  const streamingResult = await handleStreamingResponse({ ...sharedCtx, providerResponse, sourceFormat, targetFormat: providerResponseFormat, userAgent, reqLogger, toolNameMap: toolResponseMetadata || toolNameMap, customToolNames, streamController, onStreamComplete, streamDetailId, ensureOpenAIDone, credentials });
+  return streamingResult?.success ? { ...streamingResult, streaming: true } : streamingResult;
 }
 
 export function isTokenExpiringSoon(expiresAt, bufferMs = 5 * 60 * 1000) {

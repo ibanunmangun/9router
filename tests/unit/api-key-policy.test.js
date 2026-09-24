@@ -41,9 +41,12 @@ describe("modelPatternMatches", () => {
     expect(modelPatternMatches("kr/claude-sonnet-4.5", ["kr/claude-haiku-4.5"])).toBe(false);
   });
 
-  it("matches prefix wildcard provider/*", () => {
+  it("matches prefix wildcard provider/* only under that provider", () => {
     expect(modelPatternMatches("openai/*", ["openai/gpt-5.5", "openai/gpt-4o", "glm/glm-5"])).toBe(true);
     expect(modelPatternMatches("openai/*", ["glm/glm-5"])).toBe(false);
+    expect(modelPatternMatches("openai/*", ["openai-compat/gpt-5", "openai", "openrouter/gpt-4o"])).toBe(false);
+    expect(modelPatternMatches("opencode/*", ["opencode/model"])).toBe(true);
+    expect(modelPatternMatches("opencode/*", ["opencode-zen/model", "opencode-go/model", "opencode"])).toBe(false);
   });
 
   it("matches glob wildcard within a segment", () => {

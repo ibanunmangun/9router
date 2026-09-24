@@ -346,7 +346,7 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
       continue;
     }
     let releaseSlot = null;
-    let resilienceTerminalEventFired = false;
+    let resilienceTerminalEvent = null;
     try {
       releaseSlot = await acquireAccountSlot({ provider, connectionId: credentials.connectionId, bucket, maxConcurrency: refreshedCredentials.providerSpecificData?.maxConcurrency, warn: (message) => log.warn("RESILIENCE", message) });
     } catch (error) {
@@ -358,9 +358,11 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
     }
 
     // Use shared chatCore
-    const chatSettings = await getSettings();
-    const providerThinking = (chatSettings.providerThinking || {})[provider] || null;
-    const result = await handleChatCore({
+    let result;
+    try {
+      const chatSettings = await getSettings();
+      const providerThinking = (chatSettings.providerThinking || {})[provider] || null;
+      result = await handleChatCore({
       body: { ...body, model: `${provider}/${model}` },
       modelInfo: { provider, model },
       credentials: refreshedCredentials,
@@ -402,21 +404,47 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
         clearAntigravityStrikes(credentials.connectionId, model);
       },
       onResilienceEvent: (event, details) => {
-          if (event === "DISPATCH_FAILED" || event === "STREAM_COMPLETED" || event === "STREAM_FAILED" || event === "CLIENT_ABORTED" || event === "NON_STREAM_COMPLETED") {
-            resilienceTerminalEventFired = true;
+          if (["DISPATCH_FAILED", "STREAM_COMPLETED", "STREAM_FAILED", "CLIENT_ABORTED", "NON_STREAM_COMPLETED"].includes(event)) {
+            if (resilienceTerminalEvent) return;
+            resilienceTerminalEvent = event;
             releaseSlot?.();
-           releaseSlot = null;
-         }
-         recordCircuitOutcome({ provider, bucket, outcome: event, ...details });
+            releaseSlot = null;
+            recordCircuitOutcome({ provider, bucket, outcome: event, ...details });
+            return;
+          }
+          recordCircuitOutcome({ provider, bucket, outcome: event, ...details });
        }
       });
+    } catch (error) {
+      if (!resilienceTerminalEvent) {
+        resilienceTerminalEvent = "DISPATCH_FAILED";
+        recordCircuitOutcome({ provider, bucket, outcome: "DISPATCH_FAILED", status: HTTP_STATUS.BAD_GATEWAY, origin: "processing" });
+      }
+      releaseSlot?.();
+      releaseSlot = null;
+      return errorResponse(HTTP_STATUS.BAD_GATEWAY, error?.message || "Chat dispatch failed");
+    }
 
-      if (!resilienceTerminalEventFired && !result.success && releaseSlot) {
+      if (!result.success && !resilienceTerminalEvent) {
+        resilienceTerminalEvent = "DISPATCH_FAILED";
+        recordCircuitOutcome({
+          provider,
+          bucket,
+          outcome: "DISPATCH_FAILED",
+          status: result.status || result.response?.status || HTTP_STATUS.BAD_GATEWAY,
+          origin: "processing",
+        });
+      }
+      if (result.success && !result.streaming && !resilienceTerminalEvent) {
+        resilienceTerminalEvent = "NON_STREAM_COMPLETED";
+        recordCircuitOutcome({ provider, bucket, outcome: resilienceTerminalEvent });
+      }
+      if ((!result.success || !result.streaming) && releaseSlot) {
         releaseSlot();
-       releaseSlot = null;
-     }
+        releaseSlot = null;
+      }
 
-     if (result.success) return result.response;
+      if (result.success) return result.response;
 
     // Antigravity 409/429: refresh live quota to get exact resetAt before locking
     let quotaResetMs = null;
@@ -463,15 +491,22 @@ async function dispatchChatAttempt({ body, provider, model, credentials, log, cl
   } catch (error) {
     return { success: false, status: HTTP_STATUS.SERVICE_UNAVAILABLE, error: error.message, poolScoped: { poolId: credentials.providerSpecificData?.proxyPoolId } };
   }
+  let terminalEvent = null;
   const onResilienceEvent = (event, details) => {
     if (["DISPATCH_FAILED", "STREAM_COMPLETED", "STREAM_FAILED", "CLIENT_ABORTED", "NON_STREAM_COMPLETED"].includes(event)) {
+      if (terminalEvent) return;
+      terminalEvent = event;
       releaseSlot?.();
       releaseSlot = null;
+      recordCircuitOutcome({ provider, bucket, outcome: event, ...details });
+      return;
     }
     recordCircuitOutcome({ provider, bucket, outcome: event, ...details });
   };
-  const chatSettings = await getSettings();
-  const result = await handleChatCore({
+  let result;
+  try {
+    const chatSettings = await getSettings();
+    result = await handleChatCore({
     body: { ...body, model: `${provider}/${model}` }, modelInfo: { provider, model }, credentials: refreshedCredentials, log,
     clientRawRequest, connectionId: credentials.connectionId, userAgent, apiKey,
     ccFilterNaming: !!chatSettings.ccFilterNaming, rtkEnabled: !!chatSettings.rtkEnabled,
@@ -486,9 +521,32 @@ async function dispatchChatAttempt({ body, provider, model, credentials, log, cl
     ensureOpenAIDone: dashboardAuthorizedRequests.has(request),
     onCredentialsRefreshed: async (newCreds) => updateProviderCredentials(credentials.connectionId, { ...newCreds, existingProviderSpecificData: credentials.providerSpecificData, testStatus: "active" }),
      onRequestSuccess: async () => clearAccountError(credentials.connectionId, credentials, model),
-     onResilienceEvent,
-   });
-  if (!result.success && releaseSlot) {
+    onResilienceEvent,
+    });
+  } catch (error) {
+    if (!terminalEvent) {
+      terminalEvent = "DISPATCH_FAILED";
+      recordCircuitOutcome({ provider, bucket, outcome: "DISPATCH_FAILED", status: HTTP_STATUS.BAD_GATEWAY, origin: "processing" });
+    }
+    releaseSlot?.();
+    releaseSlot = null;
+    return { success: false, status: HTTP_STATUS.BAD_GATEWAY, error: error?.message || "Chat dispatch failed" };
+  }
+  if (!result.success && !terminalEvent) {
+    terminalEvent = "DISPATCH_FAILED";
+    recordCircuitOutcome({
+      provider,
+      bucket,
+      outcome: terminalEvent,
+      status: result.status || result.response?.status || HTTP_STATUS.BAD_GATEWAY,
+      origin: "processing",
+    });
+  }
+  if (result.success && !result.streaming && !terminalEvent) {
+    terminalEvent = "NON_STREAM_COMPLETED";
+    recordCircuitOutcome({ provider, bucket, outcome: terminalEvent });
+  }
+  if ((!result.success || !result.streaming) && releaseSlot) {
     releaseSlot();
     releaseSlot = null;
   }
