@@ -117,6 +117,23 @@ export function parseSSEToOpenAIResponse(rawSSE, fallbackModel, toolResponseMeta
   const guard = toolResponseMetadata?.injectedNames
     ? createOpenCodeToolResponseGuard(toolResponseMetadata)
     : null;
+  const appendReleasedEvents = (releasedEvents) => {
+    for (const releasedEvent of releasedEvents) {
+      const releasedPayload = typeof releasedEvent === "string"
+        ? releasedEvent.trim().replace(/^data:\s*/, "")
+        : releasedEvent?.payload;
+      if (!releasedPayload || releasedPayload === "[DONE]") continue;
+      if (typeof releasedPayload === "string") {
+        try {
+          chunks.push(JSON.parse(releasedPayload));
+        } catch {
+          continue;
+        }
+      } else {
+        chunks.push(releasedPayload);
+      }
+    }
+  };
   let streamError = null;
 
   for (const line of String(rawSSE || "").split("\n")) {
@@ -131,13 +148,18 @@ export function parseSSEToOpenAIResponse(rawSSE, fallbackModel, toolResponseMeta
       continue;
     }
     if (chunk?.error) streamError = chunk.error;
-    else {
-      guard?.consume({ payload: chunk, event: line });
+    else if (guard) {
+      appendReleasedEvents(guard.consume({
+        payload: chunk,
+        event: { payload: chunk },
+        serializedSize: new TextEncoder().encode(payload).byteLength,
+      }).releasedEvents);
+    } else {
       chunks.push(chunk);
     }
   }
 
-  guard?.finish();
+  if (guard) appendReleasedEvents(guard.finish().releasedEvents);
   if (streamError) return { error: streamError };
   if (chunks.length === 0) return null;
 
