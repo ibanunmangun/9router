@@ -6,7 +6,7 @@ vi.mock("../../src/lib/usageDb.js", () => ({
   saveRequestUsage: vi.fn(async () => {}),
 }));
 
-import { applyFingerprintTools, takeFingerprintMetadata } from "../../open-sse/utils/opencodeFingerprint.js";
+import { applyFingerprintTools, takeFingerprintMetadata, OPENCODE_GUARD_LIMITS } from "../../open-sse/utils/opencodeFingerprint.js";
 import { FORMATS } from "../../open-sse/translator/formats.js";
 import { handleStreamingResponse } from "../../open-sse/handlers/chatCore/streamingHandler.js";
 import { createSSEStream } from "../../open-sse/utils/stream.js";
@@ -147,5 +147,88 @@ describe("OpenCode guarded live SSE streams", () => {
     expect(onRequestSuccess).not.toHaveBeenCalled();
     expect(onResilienceEvent).toHaveBeenCalledWith("STREAM_FAILED", expect.objectContaining({ origin: "processing" }));
     expect(onResilienceEvent).not.toHaveBeenCalledWith("STREAM_COMPLETED", expect.anything());
+  });
+
+  it("fails explicitly with a bounded-buffer code once held tool output exceeds the safety limit", async () => {
+    const metadata = fingerprintMetadata(["grep_project"]);
+    // Held fragment name grows on each event without ever resolving. Once the
+    // running rename-map lookup key exceeds MAX_NAME_BYTES, the guard must
+    // reject with upstream_tool_name_limit rather than silently truncating or
+    // buffering forever.
+    const oversizedFragment = "g".repeat(OPENCODE_GUARD_LIMITS.MAX_NAME_BYTES + 1);
+    const input = `${chatTool(oversizedFragment)}data: [DONE]\n\n`;
+    const { output, failures } = await transform(input, metadata);
+
+    expect(output).toContain('"code":"upstream_tool_name_limit"');
+    expect(output.match(/data: \[DONE\]/g)).toHaveLength(1);
+    expect(failures).toEqual([expect.objectContaining({ status: 502, origin: "processing", code: "upstream_tool_name_limit" })]);
+  });
+
+  it("replays an unchanged guarded record byte-for-byte, preserving comments, multiple data lines, and CRLF terminators", async () => {
+    // Uses a tool name outside the fingerprint quartet so restoreToolNames finds
+    // no rename entry and returns the same object reference (rawChanged=false).
+    // A quartet name like "bash" would trigger a rename, which forces
+    // serializeRecord's single-line re-serialization instead of the verbatim
+    // replay this test is meant to prove.
+    const metadata = fingerprintMetadata(["Bash"]);
+    const payload = { choices: [{ index: 0, delta: { tool_calls: [{ index: 0, function: { name: "custom_project_tool" } }] }, finish_reason: "tool_calls" }] };
+    const serialized = JSON.stringify(payload);
+    const half = Math.floor(serialized.length / 2);
+    const record = [
+      ": keep-alive comment",
+      `data: ${serialized.slice(0, half)}`,
+      `data: ${serialized.slice(half)}`,
+      "",
+      "",
+    ].join("\r\n");
+    const { output, failures } = await transform(`${record}data: [DONE]\r\n\r\n`, metadata);
+
+    expect(output).toContain(": keep-alive comment\r\n");
+    expect(output).toContain(`data: ${serialized.slice(0, half)}\r\n`);
+    expect(output).toContain(`data: ${serialized.slice(half)}\r\n`);
+    expect(output).toContain('"name":"custom_project_tool"');
+    expect(failures).toEqual([]);
+  });
+
+  it("commits STREAM_FAILED before a concurrent client disconnect can record CLIENT_ABORTED", async () => {
+    const providerResponse = new Response(new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode(chatTool("grep", "tool_calls")));
+        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+        controller.close();
+      },
+    }), { headers: { "content-type": "text/event-stream" } });
+    const onResilienceEvent = vi.fn();
+    const streamController = createStreamController({ provider: "opencode", model: "test" });
+
+    const result = await handleStreamingResponse({
+      providerResponse,
+      provider: "opencode",
+      model: "test",
+      sourceFormat: FORMATS.OPENAI,
+      targetFormat: FORMATS.OPENAI,
+      userAgent: "test-client",
+      body: {},
+      stream: true,
+      translatedBody: {},
+      requestStartTime: Date.now(),
+      connectionId: "connection_2",
+      toolNameMap: fingerprintMetadata(),
+      streamController,
+      onRequestSuccess: vi.fn(),
+      onResilienceEvent,
+    });
+
+    // Read the guard-rejection bytes through so captureSemanticFailure/onGuardFailure
+    // settle STREAM_FAILED, then cancel the client-facing body — the real
+    // disconnect path (createDisconnectAwareStream's cancel() -> the wrapped
+    // controller pipeWithDisconnect builds around streamController, not
+    // streamController itself) — to prove settlement already won the race.
+    const reader = result.response.body.getReader();
+    await reader.read();
+    await reader.cancel("client_closed");
+
+    expect(onResilienceEvent).toHaveBeenCalledWith("STREAM_FAILED", expect.objectContaining({ origin: "processing" }));
+    expect(onResilienceEvent).not.toHaveBeenCalledWith("CLIENT_ABORTED", expect.anything());
   });
 });
