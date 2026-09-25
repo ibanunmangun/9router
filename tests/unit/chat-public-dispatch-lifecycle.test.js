@@ -58,7 +58,7 @@ vi.mock("../../open-sse/services/capacityAdapter.js", () => ({ augmentModelsWith
 
 const { handleChat } = await import("../../src/sse/handlers/chat.js");
 const { getAccountSemaphoreSnapshot, resetAccountSemaphores } = await import("../../open-sse/services/accountSemaphore.js");
-const { resetCircuitBreaker } = await import("../../open-sse/services/circuitBreaker.js");
+const { resetCircuitBreaker, recordCircuitOutcome } = await import("../../open-sse/services/circuitBreaker.js");
 const { resetProviderFailureTracker } = await import("../../open-sse/services/providerFailureTracker.js");
 
 const encoder = new TextEncoder();
@@ -212,6 +212,78 @@ describe("PRD S1–S3 public dispatch lifecycle", () => {
     await Promise.resolve();
     expect(getAccountSemaphoreSnapshot()).toEqual([]);
     expect(mocks.clearAccountError).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["normal", "groq/test"],
+    ["eligible Freebuff", "freebuff/test"],
+  ])("S2-F %s late client disconnect after STREAM_COMPLETED does not overwrite the first outcome", async (_kind, model) => {
+    // A real EOF settles STREAM_COMPLETED and releases the slot synchronously; a
+    // disconnect callback firing afterward (e.g. socket teardown racing the last
+    // read) must be a no-op, not a second competing terminal/outcome record.
+    mocks.executor.execute.mockResolvedValueOnce({
+      response: streamResponse(["data: {\"choices\":[{\"delta\":{\"content\":\"ok\"}}]}\n\n", "data: [DONE]\n\n"]),
+      url: "https://upstream.invalid", headers: {}, transformedBody: {},
+    });
+    const response = await handleChat(requestFor(model, true));
+    const reader = response.body.getReader();
+    while (!(await reader.read()).done) { /* drain to EOF */ }
+    await Promise.resolve();
+    expect(getAccountSemaphoreSnapshot()).toEqual([]);
+    expect(mocks.clearAccountError).toHaveBeenCalledTimes(1);
+    // Late "disconnect" after EOF: cancelling via the same reader that already
+    // drained to EOF must not throw, double-release, or fire success again.
+    await expect(reader.cancel("late disconnect after EOF")).resolves.toBeUndefined();
+    await Promise.resolve();
+    expect(getAccountSemaphoreSnapshot()).toEqual([]);
+    expect(mocks.clearAccountError).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ["normal", "groq/test"],
+    ["eligible Freebuff", "freebuff/test"],
+  ])("S2-E %s abandoning the response before any read cancels the partial upstream pipe", async (_kind, model) => {
+    // Client never reads the body at all (e.g. handler returns but caller drops
+    // the Response) — the underlying upstream stream must still be cancelled
+    // rather than left dangling, and the slot must still release.
+    const upstreamCancel = vi.fn();
+    mocks.executor.execute.mockResolvedValueOnce({
+      response: streamResponse(["data: {\"choices\":[{\"delta\":{\"content\":\"partial\"}}]}\n\n"], {
+        keepOpen: true,
+        cancel: upstreamCancel,
+      }),
+      url: "https://upstream.invalid", headers: {}, transformedBody: {},
+    });
+    const response = await handleChat(requestFor(model, true));
+    expect(getAccountSemaphoreSnapshot()).toEqual([expect.objectContaining({ active: 1 })]);
+    // Abandon without reading — cancel the client-visible body directly, as a
+    // disconnected client's transport would.
+    await response.body.cancel("abandoned before handoff read");
+    await Promise.resolve();
+    expect(getAccountSemaphoreSnapshot()).toEqual([]);
+    expect(mocks.clearAccountError).not.toHaveBeenCalled();
+  });
+
+  it("S1/S2 an open circuit for the only account skips dispatch and returns unavailable without acquiring a slot", async () => {
+    // A provider/bucket already tripped OPEN must short-circuit handleChat's
+    // account loop before acquireAccountSlot is ever called for that account,
+    // proving the circuit-gate check in chat.js actually gates real dispatch —
+    // not just the circuitBreaker unit in isolation (see circuit-breaker.test.js).
+    // Real getProviderCredentials returns null once exclusions cover every
+    // account; the default test-suite mock ignores exclusions, so it must be
+    // overridden here to reach the real "no more accounts" terminal (503)
+    // instead of looping the single excluded connection forever.
+    const bucket = "direct:test";
+    for (let i = 0; i < 10; i++) {
+      recordCircuitOutcome({ provider: "groq", bucket, outcome: "DISPATCH_FAILED", status: 503, origin: "upstream_http", connectionId: `seed-${i}`, now: Date.now() + i });
+    }
+    mocks.getProviderCredentials.mockImplementation(async (_provider, excluded) => (
+      excluded.size > 0 ? null : credentials("groq")
+    ));
+    const response = await handleChat(requestFor("groq/test", false));
+    expect(response.status).toBe(503);
+    expect(mocks.executor.execute).not.toHaveBeenCalled();
+    expect(getAccountSemaphoreSnapshot()).toEqual([]);
   });
 
   it.each([
