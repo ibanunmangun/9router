@@ -75,7 +75,7 @@ export function recordCircuitOutcome({ provider, bucket, outcome, status, origin
     return;
   }
 
-  if (outcome === "CLIENT_ABORTED" || outcome === "local_router" || outcome === "proxy_pool") {
+  if (outcome === "CLIENT_ABORTED" || origin === "local_router" || origin === "proxy_pool" || origin === "processing") {
     if (probe) state.probeClaimed = false;
     return;
   }

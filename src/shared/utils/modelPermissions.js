@@ -25,7 +25,7 @@ export function modelPatternMatches(pattern, candidates) {
     // Prefix wildcard: provider/* → all models under that provider
     if (pattern.endsWith("/*")) {
       const prefix = pattern.slice(0, -2);
-      if (candidate.startsWith(prefix + "/") || candidate.startsWith(prefix)) {
+      if (candidate.startsWith(prefix + "/")) {
         return true;
       }
     }

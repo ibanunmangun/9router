@@ -119,3 +119,16 @@ tests/unit/translator-request-normalization.test.js :: request normalization tra
 tests/unit/windsurf-executor.test.js :: WindsurfExecutor class buildUrl returns the GetChatMessage endpoint
 tests/unit/windsurf-executor.test.js :: WindsurfExecutor class constructor wires config from PROVIDERS.windsurf
 tests/unit/windsurf-executor.test.js :: WindsurfExecutor class PROVIDERS.windsurf baseUrl is the chat endpoint (registry in sync)
+# Added 2026-09-24: verified pre-existing on upstream v0.5.86 merge commit
+# fe9cfb9d (chat-dispatch-resilience, xai-oauth-service) or unmodified since
+# base commit 72f39b0c (kiro-external-idp) -- not caused by the S4 safety
+# hardening rework in this branch. xai-oauth-service needs live network per
+# repo AGENTS.md.
+tests/unit/chat-dispatch-resilience.test.js :: chatCore non-ok dispatch resilience wiring keeps a successful passthrough Responses completed terminal with exactly one DONE
+tests/unit/chat-dispatch-resilience.test.js :: chatCore non-ok dispatch resilience wiring keeps a no-newline completed Responses tail successful
+tests/unit/chat-dispatch-resilience.test.js :: chatCore non-ok dispatch resilience wiring emits passthrough Responses failure before DONE at EOF without a terminal
+tests/unit/chat-dispatch-resilience.test.js :: chatCore non-ok dispatch resilience wiring synthesizes a missing passthrough Responses terminal before an upstream DONE
+tests/unit/chat-dispatch-resilience.test.js :: chatCore non-ok dispatch resilience wiring keeps a failed passthrough Responses terminal before one existing DONE
+tests/unit/chat-dispatch-resilience.test.js :: chatCore non-ok dispatch resilience wiring classifies a no-newline response.failed tail with authoritative usage
+tests/unit/kiro-external-idp.test.js :: Kiro external_idp (CLIProxyAPI) import and refresh adds CodeWhisperer external IdP headers and endpoint ordering
+tests/unit/xai-oauth-service.test.js :: xai/oauth service validates discovered endpoints are https x.ai URLs

@@ -177,6 +177,20 @@ describe("dashboard guard public LLM API access", () => {
     expect(mocks.validateApiKey).not.toHaveBeenCalled();
   });
 
+  it.each(["/systemone", "/api/v1/systemone"])("rejects remote %s without API key", async (pathname) => {
+    const response = await proxy(request(pathname, { host: "router.example.com" }));
+
+    expect(response.status).toBe(401);
+    expect(response.body.error).toBe("API key required for remote API access");
+  });
+
+  it.each(["/systemone", "/api/v1/systemone"])("allows remote OPTIONS %s without API key", async (pathname) => {
+    const response = await proxy(request(pathname, { host: "router.example.com" }, "OPTIONS"));
+
+    expect(response).toBe(mocks.nextResponse);
+    expect(mocks.validateApiKey).not.toHaveBeenCalled();
+  });
+
   it("rejects remote rewritten public LLM API without API key", async () => {
     const response = await proxy(request("/api/v1/chat/completions", { host: "router.example.com" }));
 
