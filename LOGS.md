@@ -88,3 +88,21 @@
 - Reminder carried over (non-blocking, still not addressed): pre-existing `clientSecret` value in `tests/__baseline__/providers-baseline.json`, unrelated to any branch touched this session
 - Temp files cleaned: build logs, test workspace, and transferred image tarball removed from homelab + nulla-lab `/tmp` after use
 
+## 2026-09-30 - Usage Analytics dark-theme polish + upstream v0.5.91 sync + prod deploy
+
+### Work done
+- **PR #34** (merged to master @ `ca38f8f3`): Usage Analytics overview stat cards vertical alignment fix (`justify-center`); tried an icon+3-row redesign, user rejected it, reverted to keep only the alignment fix. Chart tooltip backgrounds fixed (`ProviderBarChart.js`, `TopModelsChart.js`, `UsageChart.js`) — was blending into page background via `var(--color-bg)`, changed to `var(--color-surface)` + border/shadow/radius. Deployed to dev then production (nulla-lab) same session.
+- **Upstream sync — PR #35** (merged to master @ `067fada5`): synced fork with `decolua/master` v0.5.91 (38 commits). 9 merge conflicts resolved additively (fork policy/connectionId/resilience logic preserved alongside upstream provider/feature updates) — `chatCore.js`, `nonStreamingHandler.js`, `streamingHandler.js`, `capabilities.js`, `registry/index.js`, `combos/page.js`, `DashboardLayout.js`, 2 claude test files. Independent `oracle` review: PASS on all 9, two pre-existing minor notes (not regressions).
+- **Found and fixed a genuine upstream test bug** during homelab regression testing: `tests/unit/image-generation.test.js` hardcoded Codex version header `0.154.0`, but upstream commit `832a3465` bumped the registry to `0.155.0` in the same commit without updating this pre-existing test (file had zero merge conflicts — pure upstream oversight). Fixed the assertion; homelab baseline regression check went from 4 failures to **No regression** (85 fails, all within 134 known baseline).
+- **Post-deploy UI feedback iteration** (still on the sync branch, caught before merge): user reported tooltip label/value text staying black in dark mode despite the surface-color fix — root cause was Recharts' `Tooltip` default `itemStyle`/`labelStyle` inline `color:#000` overriding `contentStyle.color`; added explicit `labelStyle`/`itemStyle` on all 3 tooltips. Then user flagged the bar-hover cursor highlight (solid light-gray rect, Recharts' light-theme default) as too jarring in dark mode; replaced with `currentColor` @ 6% opacity on `ProviderBarChart`/`TopModelsChart` (the `UsageChart` `AreaChart` cursor is a thin line by default, unaffected).
+- **Full deploy cycle for PR #35**: dev (homelab `ninerouter-dev`, iterated 3x as fixes landed) → prod (nulla-lab). Homelab build `--no-cache` → direct Tailscale `scp` homelab→nulla-lab (SHA-256 + manifest verified) → `docker load` → tag `9router:v0.5.91-local-067fada5` → rollback tag `9router:v0.5.86-local-ca38f8f3-rollback-20260930-001239` + compose backup of same name → `docker compose up -d --no-deps --force-recreate 9router` (Caddy untouched) → verified volume `9router_ninerouter_data:/app/data` intact, health `200`, `/api/version` reports `0.5.91`.
+
+### State
+- master = `067fada5` (local, origin, homelab `/home/itsnulla/9router-build` all in sync)
+- Production running: `9router:v0.5.91-local-067fada5`
+- DEV (`ninerouter-dev` on homelab) at the same commit `067fada5`, image `9router-dev:master`
+- Rollback available: `9router:v0.5.86-local-ca38f8f3-rollback-20260930-001239` + compose bak same timestamp on nulla-lab
+- Deleted branches (local + origin): `fix/usage-overview-cards-alignment`, `sync/upstream-decolua-v0.5.91`. Backup branch `backup/master-before-sync-upstream-v0.5.91` retained per runbook.
+- Temp files cleaned: transferred image tarball + checksum + deploy-helper scripts removed from homelab + nulla-lab `/tmp`; stale homelab test-worktree result dirs from earlier sync test iterations removed.
+- Reminder carried over (non-blocking, deferred, not addressed this session): "CU Kenari" (custom-embedding connector named "Kenari") vs "k. test" (official `kenari` provider connection) shown as separate-looking nodes in provider topology graph — confirmed not a bug (naming ambiguity only), user has not requested a UI fix (rename or provider-type badge) yet.
+

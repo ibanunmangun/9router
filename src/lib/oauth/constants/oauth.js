@@ -128,6 +128,9 @@ export const KIMCHI_CONFIG = { ...PROVIDER_OAUTH["kimchi"] };
 export const GROK_CLI_CONFIG = { ...PROVIDER_OAUTH["grok-cli"] };
 
 export const FREEBUFF_CONFIG = { ...PROVIDER_OAUTH["freebuff"] };
+// Muse — subscription device code flow to auth.meta.com, no refresh
+// (Meta rejects refresh_token grants; the minted Model API key never expires).
+export const MUSE_CONFIG = { ...PROVIDER_OAUTH["muse"] };
 
 // Trae (ByteDance marscode) OAuth — authorization_code flow with local callback.
 //   1) POST GetLoginGuidance {loginTraceID} → {Result.LoginHost}
@@ -203,6 +206,13 @@ export const WINDSURF_CONFIG = {
   oauthTimeoutMs: 600_000,
 };
 
+// GLM Coding (Z.ai) OAuth — ZCode CLI polling flow (NOT PKCE): init mints a
+// one-off poll token, the browser opens the server-generated authorize_url,
+// poll/ready returns the tokens. The Z.AI OAuth token is then exchanged for a
+// platform business JWT and finally a long-lived coding-plan API key (no
+// refresh grant).
+export const GLM_OAUTH_CONFIG = { ...PROVIDER_OAUTH["glm"] };
+
 // Zed hosted LLM aggregator — RSA keypair native-app auth (NOT OAuth).
 // Client generates ephemeral RSA-2048 keypair; user signs in at zed.dev/native_app_signin;
 // Zed redirects to local callback with access_token RSA-encrypted against our public key.
@@ -244,5 +254,6 @@ export const PROVIDERS = {
   FREEBUFF: "freebuff",
   TRAE: "trae",
   WINDSURF: "windsurf",
+  GLM: "glm",
   ZED: "zed",
 };

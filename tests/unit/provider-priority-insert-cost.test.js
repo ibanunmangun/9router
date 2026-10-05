@@ -1,11 +1,7 @@
-import { describe, expect, it } from "vitest";
-
-import {
-  createProviderConnection,
-  getProviderConnections,
-  deleteProviderConnection,
-  updateProviderConnection,
-} from "../../src/lib/db/index.js";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 // #4311: POST /api/providers was O(pool) per insert. Inside one transaction it
 // read the whole pool AND renumbered every row's priority, so a 5k-key import
@@ -13,8 +9,41 @@ import {
 // serialized on the same transaction. On top of that, an apikey name collision
 // silently overwrote the stored key with no 409.
 //
-// The test DB persists across tests in a file, so each case uses its own
-// provider alias; priorities are per-provider.
+// DB isolation: upstream removed the original version of this test (57c04f00)
+// because it imported src/lib/db without DATA_DIR isolation and seeded rows into
+// the developer's real ~/.9router database. This version points DATA_DIR at a
+// throwaway temp dir BEFORE the DB module is first imported, so it never touches
+// real data. The temp DB is shared across cases in this file, so each case uses
+// its own provider alias; priorities are per-provider.
+
+const originalDataDir = process.env.DATA_DIR;
+let tempDir;
+let createProviderConnection;
+let getProviderConnections;
+let deleteProviderConnection;
+let updateProviderConnection;
+
+beforeAll(async () => {
+  tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "9router-priority-insert-"));
+  process.env.DATA_DIR = tempDir;
+  vi.resetModules();
+  ({
+    createProviderConnection,
+    getProviderConnections,
+    deleteProviderConnection,
+    updateProviderConnection,
+  } = await import("../../src/lib/db/index.js"));
+});
+
+afterAll(() => {
+  if (originalDataDir === undefined) delete process.env.DATA_DIR;
+  else process.env.DATA_DIR = originalDataDir;
+  try {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  } catch {
+    // Best-effort cleanup; the OS temp dir is reaped eventually.
+  }
+});
 
 async function seed(provider, n) {
   for (let i = 0; i < n; i++) {
@@ -28,6 +57,11 @@ async function seed(provider, n) {
 }
 
 describe("provider insert is O(1) in pool size (#4311)", () => {
+  it("never touches the real user data dir", () => {
+    expect(process.env.DATA_DIR).toBe(tempDir);
+    expect(tempDir.startsWith(os.tmpdir())).toBe(true);
+  });
+
   it("assigns sequential priorities without a renumber pass", async () => {
     const P = `openai-compatible-seq-${Date.now()}`;
     await seed(P, 3);
@@ -59,8 +93,6 @@ describe("provider insert is O(1) in pool size (#4311)", () => {
   });
 
   it("still renumbers on an explicit priority update", async () => {
-    // Unique alias per run: the DB persists across runs, so a fixed alias
-    // would accumulate rows and make this assertion depend on test order.
     const P = `openai-compatible-upd-${Date.now()}`;
     await seed(P, 4);
     await new Promise((r) => setTimeout(r, 10));
@@ -73,16 +105,18 @@ describe("provider insert is O(1) in pool size (#4311)", () => {
 });
 
 describe("name collision no longer destroys a key silently (#4311)", () => {
-  // Seeded once: these cases each mutate the SAME row, so a per-test seed
-  // would make the later assertions depend on earlier ones.
+  // Seeded once (lazily, after the temp DB exists): these cases each mutate the
+  // SAME row, so a per-test seed would make later assertions order-dependent.
   const P = `openai-compatible-clash-${Date.now()}`;
-  const original = (async () => {
+  let originalRow;
+
+  beforeAll(async () => {
     await seed(P, 1);
-    return (await getProviderConnections({ provider: P }))[0];
-  })();
+    originalRow = (await getProviderConnections({ provider: P }))[0];
+  });
 
   it("throws a typed conflict instead of overwriting, when overwrite is refused", async () => {
-    const orig = await original;
+    const orig = originalRow;
     await expect(
       createProviderConnection({
         provider: P,
@@ -99,7 +133,7 @@ describe("name collision no longer destroys a key silently (#4311)", () => {
   });
 
   it("still overwrites when the caller opts in", async () => {
-    const orig = await original;
+    const orig = originalRow;
     const updated = await createProviderConnection({
       provider: P,
       authType: "apikey",
@@ -115,7 +149,7 @@ describe("name collision no longer destroys a key silently (#4311)", () => {
   it("defaults to the previous overwrite behaviour for existing callers", async () => {
     // Every other call site in the repo (oauth routes, bulk import) omits the
     // flag, so they must keep working exactly as before.
-    const orig = await original;
+    const orig = originalRow;
     const updated = await createProviderConnection({
       provider: P,
       authType: "apikey",
@@ -126,7 +160,7 @@ describe("name collision no longer destroys a key silently (#4311)", () => {
   });
 
   it("does not collide across different providers", async () => {
-    const orig = await original;
+    const orig = originalRow;
     const other = await createProviderConnection({
       provider: "openai-compatible-other",
       authType: "apikey",
