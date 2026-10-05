@@ -24,6 +24,11 @@ const STREAM_MODE = {
   PASSTHROUGH: "passthrough" // No translation, normalize output, extract usage
 };
 
+// Upper bound on the deferred response.completed wait: a chat->responses stream
+// that saw finish_reason without usage must not hold the client's terminal event
+// forever when the upstream stalls with no usage trailer and no [DONE].
+const PENDING_COMPLETION_FLUSH_MS = 3000;
+
 /**
  * Create unified SSE transform stream
  * @param {object} options
@@ -324,6 +329,7 @@ export function createSSEStream(options = {}) {
       : null;
     if (isOpenAIResponsesStream) markResponsesTerminal(openAIResponsesEventName, parsed);
     if (parsed.done && targetFormat !== FORMATS.OLLAMA) {
+      flushDeferredCompletionOnDone(controller);
       if ((keepsOpenAIResponsesFormat || openAIResponsesStreamSeen) && !openAIResponsesTerminalSeen) emitIncompleteResponsesFailure(controller);
       if ((ensureOpenAIDone || keepsOpenAIResponsesFormat) && !streamDoneSent) queueGuardedOutput(controller, "data: [DONE]\n\n");
       markDoneSent();
@@ -347,10 +353,12 @@ export function createSSEStream(options = {}) {
       captureProcessingFailure(error);
     }
   };
+  let completionFlushTimer = null;
 
   // Usage/logging tail, callable from transform() as well as flush(): a client that
   // closes right after the terminal event cancels the reader, and flush() never runs.
   const finalizeStream = () => {
+    if (completionFlushTimer) { clearTimeout(completionFlushTimer); completionFlushTimer = null; }
     if (finalized) return;
     finalized = true;
 
@@ -380,6 +388,41 @@ export function createSSEStream(options = {}) {
         thinking: accumulatedThinking
       }, finalUsage, ttftAt);
     }
+  };
+
+  // Emit the deferred response.completed now — at [DONE], or when the watchdog
+  // below gives up on a usage trailer that never arrives.
+  const flushPendingCompletion = (controller) => {
+    const completed = translateResponse(targetFormat, sourceFormat, null, state);
+    for (const item of completed || []) {
+      if (item === null || item === undefined) continue;
+      const output = formatSSE(item, sourceFormat);
+      reqLogger?.appendConvertedChunk?.(output);
+      controller.enqueue(sharedEncoder.encode(output));
+      sseEmittedCount++;
+    }
+    finalizeStream();
+  };
+
+  // Chat->Responses can defer response.completed while waiting for a usage trailer.
+  const isCompletionDeferred = () =>
+    targetFormat === FORMATS.OPENAI && sourceFormat === FORMATS.OPENAI_RESPONSES &&
+    !!state?.completionPending && !state?.completedSent;
+
+  // [DONE] ends the usage-trailer wait even if upstream keeps the connection open.
+  const flushDeferredCompletionOnDone = (controller) => {
+    if (isCompletionDeferred()) flushPendingCompletion(controller);
+  };
+
+  // Bound the wait: a broken chat upstream may stall after finish_reason with no usage
+  // trailer and no [DONE], so the client still needs a terminal event.
+  const armCompletionWatchdog = (controller) => {
+    if (!isCompletionDeferred() || completionFlushTimer) return;
+    completionFlushTimer = setTimeout(() => {
+      completionFlushTimer = null;
+      if (state?.completedSent) return;
+      try { flushPendingCompletion(controller); } catch { /* controller already closed */ }
+    }, PENDING_COMPLETION_FLUSH_MS);
   };
 
   return new TransformStream({
@@ -560,6 +603,7 @@ export function createSSEStream(options = {}) {
           const payload = parseSSELine(trimmed, targetFormat);
           if (!payload) return;
           if (payload.done && targetFormat !== FORMATS.OLLAMA) {
+            flushDeferredCompletionOnDone(controller);
             const keepsOpenAIResponsesFormat = targetFormat === FORMATS.OPENAI_RESPONSES && sourceFormat === FORMATS.OPENAI_RESPONSES;
             if ((keepsOpenAIResponsesFormat || openAIResponsesStreamSeen) && !openAIResponsesTerminalSeen) emitIncompleteResponsesFailure(controller);
             if ((ensureOpenAIDone || keepsOpenAIResponsesFormat) && !streamDoneSent) queueGuardedOutput(controller, "data: [DONE]\n\n");
@@ -722,6 +766,7 @@ export function createSSEStream(options = {}) {
       } catch (error) {
         emitGuardFailure(controller, error);
       }
+      armCompletionWatchdog(controller);
     },
 
     flush(controller) {

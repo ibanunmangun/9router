@@ -34,10 +34,17 @@ export async function resolveConnectionProxyConfig(providerSpecificData = {}, co
       : excludedPoolIds.includes(proxyPoolId) ? null : proxyPoolId;
     const legacy = normalizeLegacyProxy(providerSpecificData);
 
+    // A strict pool must keep its guarantee even when the pool itself is not
+    // usable (inactive, or saved without a url). Otherwise the unusable-pool
+    // path below reports strictProxy:false and the request silently leaves
+    // over the direct IP - the leak strict mode exists to prevent (#4333).
+    let poolStrictProxy = false;
+
     if (selectedPoolId) {
       const proxyPool = await getProxyPoolById(selectedPoolId);
       const proxyUrl = normalizeString(proxyPool?.proxyUrl);
       const noProxy = normalizeString(proxyPool?.noProxy);
+      poolStrictProxy = proxyPool?.strictProxy === true;
       if (proxyPool && proxyPool.isActive === true && proxyUrl) {
         const observedFitnessVersion = scope ? await observePoolFitnessVersion(selectedPoolId, scope) : 0;
         if (["vercel", "cloudflare", "deno"].includes(proxyPool.type)) {
@@ -47,9 +54,9 @@ export async function resolveConnectionProxyConfig(providerSpecificData = {}, co
       }
     }
 
-    if (legacy.connectionProxyEnabled && legacy.connectionProxyUrl) return { source: "legacy", proxyPoolId: selectedPoolId || null, proxyPool: null, ...legacy };
+    if (legacy.connectionProxyEnabled && legacy.connectionProxyUrl) return { source: "legacy", proxyPoolId: selectedPoolId || null, proxyPool: null, strictProxy: poolStrictProxy, ...legacy };
     if (scope?.startsWith("freebuff::")) return { source: "pool", proxyPoolId: null, proxyPool: null, noFitPool: true, connectionProxyEnabled: false, connectionProxyUrl: "", connectionNoProxy: "", strictProxy: true };
-    return { source: "none", proxyPoolId: proxyPoolId || null, proxyPool: null, ...legacy };
+    return { source: "none", proxyPoolId: proxyPoolId || null, proxyPool: null, strictProxy: poolStrictProxy, ...legacy };
   } catch (error) {
     console.error("[resolveConnectionProxyConfig] Failed to resolve proxy config:", error);
     const freebuffScope = providerSpecificData?.proxyPoolScope?.startsWith("freebuff::") === true;

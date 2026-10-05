@@ -194,7 +194,9 @@ export async function handleChat(request, clientRawRequest = null, requestContex
     });
   }
 
-  return handleSingleModelChat(body, modelStr, clientRawRequest, request, apiKey);
+  return handleSingleModelChat(body, modelStr, clientRawRequest, request, apiKey, {
+    requestedModel: contextMarker ? `${modelStr.slice(modelStr.indexOf("/") + 1)}[${contextMarker}]` : null,
+  });
 }
 
 /**
@@ -302,6 +304,7 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
   while (true) {
     const credentials = await getProviderCredentials(provider, excludeConnectionIds, model, {
       preferredConnectionId: options.preferredConnectionId,
+      requestedModel: options.requestedModel || model,
     });
 
     // All accounts unavailable
@@ -390,6 +393,8 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
       pxpipeTransform: chatSettings.pxpipeEnabled ? await getPxpipeTransform() : null,
       onPxpipeEvent: appendPxpipeEvent,
       providerThinking,
+      // Per-provider user overrides (custom headers / connect timeout) from settings
+      providerOverrides: (chatSettings.providerOverrides || {})[provider] || null,
       // Detect source format by endpoint + body
       sourceFormatOverride: sourceFormatForRequest(request, body),
       ensureOpenAIDone: dashboardAuthorizedRequests.has(request),
@@ -520,6 +525,7 @@ async function dispatchChatAttempt({ body, provider, model, credentials, log, cl
     pxpipeEnabled: !!chatSettings.pxpipeEnabled, pxpipeMinChars: chatSettings.pxpipeMinChars, pxpipeTimeoutMs: chatSettings.pxpipeTimeoutMs,
     pxpipeTransform: chatSettings.pxpipeEnabled ? await getPxpipeTransform() : null, onPxpipeEvent: appendPxpipeEvent,
     providerThinking: (chatSettings.providerThinking || {})[provider] || null,
+    providerOverrides: (chatSettings.providerOverrides || {})[provider] || null,
     sourceFormatOverride: sourceFormatForRequest(request, body),
     ensureOpenAIDone: dashboardAuthorizedRequests.has(request),
     onCredentialsRefreshed: async (newCreds) => updateProviderCredentials(credentials.connectionId, { ...newCreds, existingProviderSpecificData: credentials.providerSpecificData, testStatus: "active" }),
