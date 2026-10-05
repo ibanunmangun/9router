@@ -56,6 +56,34 @@ describe("strict proxy boundary", () => {
     expect(dispatch).not.toHaveBeenCalled();
   });
 
+  it("rejects a strict request with an assigned pool but no resolved url even when an env proxy exists", async () => {
+    vi.stubEnv("HTTPS_PROXY", "http://env-proxy.invalid:3128");
+    const dispatch = vi.fn();
+    globalThis.fetch = dispatch;
+    vi.resetModules();
+    const { proxyAwareFetch } = await import("../../open-sse/utils/proxyFetch.js");
+
+    await expect(proxyAwareFetch("https://api.codebuff.com/v1/chat", {}, {
+      proxyPoolId: "pool-1",
+      strictProxy: true,
+    })).rejects.toThrow("Proxy required");
+
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it("lets a strict caller with no proxy intended reach the network (Qoder replay-guard semantics)", async () => {
+    const dispatch = vi.fn().mockResolvedValue(new Response("ok"));
+    globalThis.fetch = dispatch;
+    vi.resetModules();
+    const { proxyAwareFetch } = await import("../../open-sse/utils/proxyFetch.js");
+
+    await expect(proxyAwareFetch("https://api.codebuff.com/v1/chat", {}, {
+      strictProxy: true,
+    })).resolves.toBeInstanceOf(Response);
+
+    expect(dispatch).toHaveBeenCalledTimes(1);
+  });
+
   it("does not retry direct after a noReplay MITM bypass response loss", async () => {
     const originalFetch = vi.fn().mockResolvedValue(new Response("direct"));
     globalThis.fetch = originalFetch;
